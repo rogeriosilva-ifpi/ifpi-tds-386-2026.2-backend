@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cardápio Digital - IFPI TDS</title>
+    <title>Cardápio Digital - IFPI TDS (Reativo)</title>
     <!-- Tailwind CSS via CDN para rápida visualização sem build tools -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -35,7 +35,7 @@
                 </div>
                 <div>
                     <h1 class="text-xl sm:text-2xl font-bold tracking-tight">Cardápio Digital</h1>
-                    <p class="text-xs sm:text-sm text-emerald-100 font-medium">IFPI TDS 386 • Backend & Frontend Didático</p>
+                    <p class="text-xs sm:text-sm text-emerald-100 font-medium">IFPI TDS 386 • Frontend Reativo (Pub-Sub)</p>
                 </div>
             </div>
 
@@ -45,7 +45,7 @@
                    class="inline-flex items-center gap-1.5 px-3 py-2 bg-emerald-800 hover:bg-emerald-900 text-xs font-semibold rounded-lg transition">
                     <i class="fa-solid fa-book-open"></i> Swagger API
                 </a>
-                <button onclick="abrirModalCadastro()" 
+                <button id="btn-novo-item"
                         class="inline-flex items-center gap-2 px-4 py-2 bg-amber-400 hover:bg-amber-300 text-slate-900 text-sm font-bold rounded-lg shadow-sm transition transform active:scale-95">
                     <i class="fa-solid fa-plus"></i> Novo Item
                 </button>
@@ -71,9 +71,9 @@
                 <p id="stat-esgotados" class="text-2xl font-bold text-rose-500">0</p>
             </div>
             <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-                <span class="text-xs text-slate-500 font-medium">Persistência</span>
-                <p class="text-sm font-bold text-indigo-600 flex items-center gap-1 mt-1">
-                    <i class="fa-solid fa-database"></i> SQLite + SQLModel
+                <span class="text-xs text-slate-500 font-medium">Arquitetura UI</span>
+                <p class="text-xs font-bold text-indigo-600 flex items-center gap-1 mt-1">
+                    <i class="fa-solid fa-bolt"></i> Estado Reativo (Pub-Sub)
                 </p>
             </div>
         </section>
@@ -84,7 +84,7 @@
                 <!-- Campo de Busca Textual -->
                 <div class="relative flex-1">
                     <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
-                    <input type="text" id="campo-busca" placeholder="Buscar por nome ou ingrediente..." 
+                    <input type="text" id="campo-busca" placeholder="Buscar por prato ou ingrediente..." 
                            class="w-full pl-10 pr-4 py-2 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition">
                 </div>
 
@@ -95,19 +95,19 @@
                 </label>
             </div>
 
-            <!-- Filtros de Categoria (Pills) -->
+            <!-- Filtros de Categoria (Pills com data-categoria) -->
             <div class="flex flex-wrap gap-2 pt-2 border-t border-slate-100" id="filtros-categoria">
-                <button onclick="filtrarCategoria('')" class="btn-categoria px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-600 text-white shadow-sm transition" data-categoria="">
+                <button class="btn-categoria px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-600 text-white shadow-sm transition" data-categoria="">
                     Todos
                 </button>
-                <button onclick="filtrarCategoria('Lanches')" class="btn-categoria px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200 transition" data-categoria="Lanches">
-                    <i class="fa-solid fa-burger mr-1"></i> Lanches
+                <button class="btn-categoria px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200 transition" data-categoria="Lanches">
+                    <i class="fa-solid fa-burger mr-1 pointer-events-none"></i> Lanches
                 </button>
-                <button onclick="filtrarCategoria('Bebidas')" class="btn-categoria px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200 transition" data-categoria="Bebidas">
-                    <i class="fa-solid fa-glass-water mr-1"></i> Bebidas
+                <button class="btn-categoria px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200 transition" data-categoria="Bebidas">
+                    <i class="fa-solid fa-glass-water mr-1 pointer-events-none"></i> Bebidas
                 </button>
-                <button onclick="filtrarCategoria('Sobremesas')" class="btn-categoria px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200 transition" data-categoria="Sobremesas">
-                    <i class="fa-solid fa-ice-cream mr-1"></i> Sobremesas
+                <button class="btn-categoria px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200 transition" data-categoria="Sobremesas">
+                    <i class="fa-solid fa-ice-cream mr-1 pointer-events-none"></i> Sobremesas
                 </button>
             </div>
         </section>
@@ -117,7 +117,7 @@
 
         <!-- GRID DE CARDS DO CARDÁPIO -->
         <section id="grid-cardapio" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <!-- Os cards serão injetados dinamicamente pelo app.js via fetch(GET) -->
+            <!-- Cards injetados reativamente por render.js via subscribe() -->
         </section>
 
         <!-- MENSAGEM DE NENHUM ITEM ENCONTRADO -->
@@ -137,13 +137,13 @@
             <!-- Cabeçalho do Modal -->
             <div class="px-6 py-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
                 <h3 id="modal-titulo" class="text-lg font-bold text-slate-800">Novo Item no Cardápio</h3>
-                <button onclick="fecharModal()" class="text-slate-400 hover:text-slate-600 transition">
+                <button id="btn-fechar-modal" class="text-slate-400 hover:text-slate-600 transition">
                     <i class="fa-solid fa-xmark text-lg"></i>
                 </button>
             </div>
 
-            <!-- Formulário -->
-            <form id="form-item" onsubmit="salvarItem(event)" class="p-6 space-y-4">
+            <!-- Formulário Desacoplado -->
+            <form id="form-item" class="p-6 space-y-4">
                 <input type="hidden" id="item-id">
 
                 <div>
@@ -185,7 +185,7 @@
 
                 <!-- Botões de Ação do Modal -->
                 <div class="flex justify-end gap-2 pt-4 border-t border-slate-100">
-                    <button type="button" onclick="fecharModal()" 
+                    <button type="button" id="btn-cancelar-modal"
                             class="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-lg transition">
                         Cancelar
                     </button>
@@ -200,10 +200,10 @@
 
     <!-- RODAPÉ DIDÁTICO -->
     <footer class="bg-white border-t border-slate-200 py-6 text-center text-xs text-slate-500 mt-auto">
-        <p>Projeto Didático IFPI TDS 386 • Desenvolvido com <strong>FastAPI</strong>, <strong>SQLModel</strong> e <strong>Fetch API</strong></p>
+        <p>Projeto Didático IFPI TDS 386 • Frontend Reativo (Vanilla JS + Pub-Sub) • Backend FastAPI + SQLModel</p>
     </footer>
 
-    <!-- Script com as chamadas assíncronas à API -->
-    <script src="app.js"></script>
+    <!-- Script principal carregado como Módulo ES -->
+    <script type="module" src="app.js"></script>
 </body>
 </html>

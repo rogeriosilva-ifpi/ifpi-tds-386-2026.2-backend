@@ -1,354 +1,227 @@
 // =====================================================================
-// CONCEITO: Consumo de API REST com Fetch API (JavaScript Vanilla)
-// Esta aplicação demonstra como o navegador consome uma API backend:
-// - GET: Recuperar dados
-// - POST: Criar novos recursos
-// - PUT: Atualizar recursos existentes
-// - PATCH: Atualização parcial rápida
-// - DELETE: Remover recursos
+// CONCEITO DIDÁTICO: Controlador da Aplicação (App / Controller)
+//
+// 1. O que este módulo faz?
+//    - Faz o startup da aplicação (inicialização).
+//    - Registra o render.js como ouvinte do state.js via subscribe().
+//    - Vincula os eventos do DOM (clicks, submits, inputs) às regras de negócio.
+//    - Orquestra o ciclo: Usuário -> Evento -> API -> State -> Notify -> Render.
 // =====================================================================
 
-const API_BASE_URL = "http://127.0.0.1:8000";
+import {
+    getState,
+    subscribe,
+    setItens,
+    setCategoria,
+    setFiltroDisponivel,
+    setBusca,
+    setCarregando,
+    setErro,
+    abrirModalNovo,
+    abrirModalEdicao,
+    fecharModal
+} from "./state.js";
 
-let categoriaAtiva = "";
+import * as api from "./api.js";
+import { renderizarApp } from "./render.js";
+
+// Variável para controle de debounce na busca por texto
 let debounceTimeout = null;
 
-// Elementos da Interface
-const gridCardapio = document.getElementById("grid-cardapio");
-const vazioMsg = document.getElementById("vazio-msg");
-const campoBusca = document.getElementById("campo-busca");
-const filtroDisponivel = document.getElementById("filtro-disponivel");
-const modalItem = document.getElementById("modal-item");
-const formItem = document.getElementById("form-item");
-const statusConexao = document.getElementById("status-conexao");
 
-// Contadores de Estatísticas
-const statTotal = document.getElementById("stat-total");
-const statDisponiveis = document.getElementById("stat-disponiveis");
-const statEsgotados = document.getElementById("stat-esgotados");
+// =====================================================================
+// CONCEITO: Inscrição Reativa Principal (The Reactive Hook)
+// Conecta o motor de renderização às mudanças de estado.
+// A partir desta linha, qualquer alteração em state.js dispara renderizarApp!
+// =====================================================================
+subscribe(renderizarApp);
 
 
 // =====================================================================
-// CONCEITO: Requisição GET com Query Parameters
-// Envia filtros na URL (?categoria=...&disponivel=...&busca=...)
+// CONCEITO: Inicialização e Carregamento de Dados (Startup)
 // =====================================================================
-async function carregarItens() {
+async function carregarDadosIniciais() {
+    setCarregando(true);
+    setErro(null);
+
     try {
-        const params = new URLSearchParams();
-
-        if (categoriaAtiva) {
-            params.append("categoria", categoriaAtiva);
-        }
-
-        if (filtroDisponivel.checked) {
-            params.append("disponivel", "true");
-        }
-
-        const termoBusca = campoBusca.value.trim();
-        if (termoBusca) {
-            params.append("busca", termoBusca);
-        }
-
-        const url = `${API_BASE_URL}/cardapio/?${params.toString()}`;
-        const resposta = await fetch(url);
-
-        if (!resposta.ok) {
-            throw new Error(`Erro HTTP ${resposta.status}: ${resposta.statusText}`);
-        }
-
-        const itens = await resposta.json();
-        ocultarErroConexao();
-        renderizarCards(itens);
-        atualizarEstatisticas(itens);
+        const dados = await api.listarCardapio();
+        setItens(dados);
     } catch (erro) {
-        console.error("Falha ao comunicar com a API:", erro);
-        exibirErroConexao(erro.message);
+        console.error("Falha na inicialização da aplicação:", erro);
+        setErro(erro.message);
+    } finally {
+        setCarregando(false);
     }
 }
 
 
 // =====================================================================
-// CONCEITO: Renderização Dinâmica do DOM
-// Cria elementos HTML para cada item retornado pelo Backend
+// CONCEITO: Vinculação de Eventos (Event Binding Desacoplado)
+// Remove a necessidade de atributos onclick/onsubmit no HTML.
 // =====================================================================
-function renderizarCards(itens) {
-    gridCardapio.innerHTML = "";
-
-    if (!itens || itens.length === 0) {
-        vazioMsg.classList.remove("hidden");
-        return;
+function configurarEventos() {
+    // 1. Botão de Abertura do Modal de Novo Item
+    const btnNovo = document.getElementById("btn-novo-item");
+    if (btnNovo) {
+        btnNovo.addEventListener("click", () => abrirModalNovo());
     }
 
-    vazioMsg.classList.add("hidden");
+    // 2. Botões de Fechar Modal
+    const btnFechar = document.getElementById("btn-fechar-modal");
+    const btnCancelar = document.getElementById("btn-cancelar-modal");
+    const modal = document.getElementById("modal-item");
 
-    itens.forEach(item => {
-        const card = document.createElement("article");
-        card.className = `bg-white rounded-2xl p-5 border transition-all duration-200 hover:shadow-md flex flex-col justify-between ${
-            item.disponivel ? "border-slate-200" : "border-rose-200 bg-rose-50/20"
-        }`;
+    if (btnFechar) btnFechar.addEventListener("click", () => fecharModal());
+    if (btnCancelar) btnCancelar.addEventListener("click", () => fecharModal());
 
-        // Cores semânticas por categoria
-        let corBadge = "bg-amber-100 text-amber-800";
-        if (item.categoria === "Bebidas") corBadge = "bg-sky-100 text-sky-800";
-        if (item.categoria === "Sobremesas") corBadge = "bg-purple-100 text-purple-800";
-
-        // Formatação de moeda BRL (Real)
-        const precoFormatado = Number(item.preco).toLocaleString("pt-BR", {
-            style: "currency",
-            currency: "BRL"
+    // Fechar ao clicar no backdrop (fundo escuro)
+    if (modal) {
+        modal.addEventListener("click", (e) => {
+            if (e.target === modal) fecharModal();
         });
+    }
 
-        card.innerHTML = `
-            <div>
-                <div class="flex justify-between items-start gap-2 mb-2">
-                    <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full ${corBadge}">
-                        ${item.categoria}
-                    </span>
-                    <span class="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
-                        item.disponivel ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"
-                    }">
-                        <span class="w-1.5 h-1.5 rounded-full ${item.disponivel ? "bg-emerald-500" : "bg-rose-500"}"></span>
-                        ${item.disponivel ? "Disponível" : "Esgotado"}
-                    </span>
-                </div>
-                
-                <h4 class="font-bold text-slate-900 text-base mb-1">${escapeHtml(item.nome)}</h4>
-                <p class="text-xs text-slate-500 line-clamp-2 mb-4">${escapeHtml(item.descricao || "Sem descrição informada.")}</p>
-            </div>
+    // 3. Submissão do Formulário (POST ou PUT)
+    const form = document.getElementById("form-item");
+    if (form) {
+        form.addEventListener("submit", lidarComSubmissaoFormulario);
+    }
 
-            <div class="pt-3 border-t border-slate-100 flex items-center justify-between mt-auto">
-                <span class="text-base font-extrabold text-slate-900">${precoFormatado}</span>
+    // 4. Filtro por Categoria (clique nos botões de pílula)
+    const containerFiltros = document.getElementById("filtros-categoria");
+    if (containerFiltros) {
+        containerFiltros.addEventListener("click", (e) => {
+            const btn = e.target.closest(".btn-categoria");
+            if (!btn) return;
+            const categoria = btn.getAttribute("data-categoria");
+            setCategoria(categoria);
+        });
+    }
 
-                <div class="flex items-center gap-1">
-                    <!-- Alternar Disponibilidade (PATCH) -->
-                    <button onclick="alternarDisponibilidade(${item.id})" 
-                            title="${item.disponivel ? "Marcar como Esgotado" : "Marcar como Disponível"}"
-                            class="p-2 text-xs rounded-lg transition ${
-                                item.disponivel 
-                                    ? "text-slate-400 hover:text-rose-600 hover:bg-rose-50" 
-                                    : "text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-                            }">
-                        <i class="fa-solid fa-power-off"></i>
-                    </button>
+    // 5. Filtro de Disponíveis (Checkbox)
+    const chkDisponivel = document.getElementById("filtro-disponivel");
+    if (chkDisponivel) {
+        chkDisponivel.addEventListener("change", (e) => {
+            setFiltroDisponivel(e.target.checked);
+        });
+    }
 
-                    <!-- Editar Item (PUT) -->
-                    <button onclick='abrirModalEdicao(${JSON.stringify(item)})' 
-                            title="Editar Item"
-                            class="p-2 text-xs text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition">
-                        <i class="fa-solid fa-pen"></i>
-                    </button>
+    // 6. Campo de Busca com Debounce (evita requisições excessivas enquanto o usuário digita)
+    const campoBusca = document.getElementById("campo-busca");
+    if (campoBusca) {
+        campoBusca.addEventListener("input", (e) => {
+            clearTimeout(debounceTimeout);
+            debounceTimeout = setTimeout(() => {
+                setBusca(e.target.value);
+            }, 250);
+        });
+    }
 
-                    <!-- Excluir Item (DELETE) -->
-                    <button onclick="excluirItem(${item.id}, '${escapeHtml(item.nome)}')" 
-                            title="Excluir Item"
-                            class="p-2 text-xs text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition">
-                        <i class="fa-solid fa-trash-can"></i>
-                    </button>
-                </div>
-            </div>
-        `;
+    // 7. Delegação de Eventos no Grid de Cards (Alternar, Editar, Excluir)
+    // Em vez de vincular centenas de listeners a cada card, vinculamos um único ao grid pai.
+    const grid = document.getElementById("grid-cardapio");
+    if (grid) {
+        grid.addEventListener("click", lidarComAcoesDosCards);
+    }
 
-        gridCardapio.appendChild(card);
-    });
+    // 8. Botão de Tentar Novamente no banner de erro
+    const containerStatus = document.getElementById("status-conexao");
+    if (containerStatus) {
+        containerStatus.addEventListener("click", (e) => {
+            if (e.target.id === "btn-tentar-novamente") {
+                carregarDadosIniciais();
+            }
+        });
+    }
 }
 
 
 // =====================================================================
-// CONCEITO: Requisição POST (Criação) ou PUT (Edição) com Body JSON
-// Envia os dados no corpo com cabeçalho 'Content-Type': 'application/json'
+// CONCEITO: Manipulador de Submissão do Formulário (Cadastro / Edição)
 // =====================================================================
-async function salvarItem(event) {
-    event.preventDefault();
+async function lidarComSubmissaoFormulario(evento) {
+    evento.preventDefault();
 
     const id = document.getElementById("item-id").value;
-    const nome = document.getElementById("item-nome").value.trim();
-    const descricao = document.getElementById("item-descricao").value.trim() || null;
-    const preco = parseFloat(document.getElementById("item-preco").value);
-    const categoria = document.getElementById("item-categoria").value;
-    const disponivel = document.getElementById("item-disponivel").checked;
-
-    const payload = { nome, descricao, preco, categoria, disponivel };
+    const payload = {
+        nome: document.getElementById("item-nome").value.trim(),
+        descricao: document.getElementById("item-descricao").value.trim() || null,
+        preco: parseFloat(document.getElementById("item-preco").value),
+        categoria: document.getElementById("item-categoria").value,
+        disponivel: document.getElementById("item-disponivel").checked,
+    };
 
     try {
-        let url = `${API_BASE_URL}/cardapio/`;
-        let metodo = "POST";
+        setCarregando(true);
 
         if (id) {
-            // Se possui ID, é uma atualização (PUT)
-            url = `${API_BASE_URL}/cardapio/${id}`;
-            metodo = "PUT";
-        }
-
-        const resposta = await fetch(url, {
-            method: metodo,
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(payload),
-        });
-
-        if (!resposta.ok) {
-            const erroData = await resposta.json().catch(() => ({}));
-            throw new Error(erroData.detail || `Erro HTTP ${resposta.status}`);
+            // Se possui ID, atualiza via PUT
+            await api.atualizarItem(Number(id), payload);
+        } else {
+            // Se não possui ID, cadastra novo via POST
+            await api.cadastrarItem(payload);
         }
 
         fecharModal();
-        await carregarItens();
+
+        // Atualiza a lista no estado com os dados mais recentes do backend
+        const pratosAtualizados = await api.listarCardapio();
+        setItens(pratosAtualizados);
     } catch (erro) {
         alert(`Erro ao salvar item: ${erro.message}`);
+    } finally {
+        setCarregando(false);
     }
 }
 
 
 // =====================================================================
-// CONCEITO: Requisição PATCH (Atualização Parcial)
-// Usado aqui para alternar o status disponível/esgotado
+// CONCEITO: Delegação de Ações dos Cards
+// Identifica qual botão de ação foi clicado com base em data-action
 // =====================================================================
-async function alternarDisponibilidade(id) {
-    try {
-        const resposta = await fetch(`${API_BASE_URL}/cardapio/${id}/disponibilidade`, {
-            method: "PATCH",
-        });
+async function lidarComAcoesDosCards(evento) {
+    const botao = evento.target.closest("button[data-action]");
+    if (!botao) return;
 
-        if (!resposta.ok) {
-            throw new Error(`Erro ao atualizar disponibilidade (${resposta.status})`);
+    const acao = botao.getAttribute("data-action");
+    const id = Number(botao.getAttribute("data-id"));
+
+    if (acao === "alternar") {
+        try {
+            await api.alternarDisponibilidade(id);
+            // Atualiza o estado recarregando os itens
+            const pratos = await api.listarCardapio();
+            setItens(pratos);
+        } catch (erro) {
+            alert(`Falha ao alternar disponibilidade: ${erro.message}`);
         }
-
-        await carregarItens();
-    } catch (erro) {
-        alert(`Não foi possível alterar a disponibilidade: ${erro.message}`);
-    }
-}
-
-
-// =====================================================================
-// CONCEITO: Requisição DELETE (Remoção com Status 204)
-// =====================================================================
-async function excluirItem(id, nome) {
-    const confirmou = confirm(`Deseja realmente remover o item "${nome}" do cardápio?`);
-    if (!confirmou) return;
-
-    try {
-        const resposta = await fetch(`${API_BASE_URL}/cardapio/${id}`, {
-            method: "DELETE",
-        });
-
-        if (!resposta.ok && resposta.status !== 204) {
-            throw new Error(`Erro ao excluir item (${resposta.status})`);
+    } else if (acao === "editar") {
+        const estadoAtual = getState();
+        const itemParaEditar = estadoAtual.itens.find(i => i.id === id);
+        if (itemParaEditar) {
+            abrirModalEdicao(itemParaEditar);
         }
+    } else if (acao === "excluir") {
+        const nome = botao.getAttribute("data-nome") || "este item";
+        const confirmou = confirm(`Deseja realmente excluir "${nome}" do cardápio?`);
+        if (!confirmou) return;
 
-        await carregarItens();
-    } catch (erro) {
-        alert(`Não foi possível excluir o item: ${erro.message}`);
-    }
-}
-
-
-// =====================================================================
-// Funções Utilitárias e Modais
-// =====================================================================
-function abrirModalCadastro() {
-    formItem.reset();
-    document.getElementById("item-id").value = "";
-    document.getElementById("item-disponivel").checked = true;
-    document.getElementById("modal-titulo").innerText = "Novo Item no Cardápio";
-    modalItem.classList.remove("hidden");
-    document.getElementById("item-nome").focus();
-}
-
-function abrirModalEdicao(item) {
-    document.getElementById("item-id").value = item.id;
-    document.getElementById("item-nome").value = item.nome;
-    document.getElementById("item-descricao").value = item.descricao || "";
-    document.getElementById("item-preco").value = item.preco;
-    document.getElementById("item-categoria").value = item.categoria;
-    document.getElementById("item-disponivel").checked = item.disponivel;
-    document.getElementById("modal-titulo").innerText = `Editar Item #${item.id}`;
-    modalItem.classList.remove("hidden");
-    document.getElementById("item-nome").focus();
-}
-
-function fecharModal() {
-    modalItem.classList.add("hidden");
-    formItem.reset();
-}
-
-function filtrarCategoria(categoria) {
-    categoriaAtiva = categoria;
-
-    // Atualizar estilo visual dos botões
-    document.querySelectorAll(".btn-categoria").forEach(btn => {
-        if (btn.getAttribute("data-categoria") === categoria) {
-            btn.className = "btn-categoria px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-600 text-white shadow-sm transition";
-        } else {
-            btn.className = "btn-categoria px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200 transition";
+        try {
+            await api.removerItem(id);
+            const pratos = await api.listarCardapio();
+            setItens(pratos);
+        } catch (erro) {
+            alert(`Falha ao excluir item: ${erro.message}`);
         }
-    });
-
-    carregarItens();
-}
-
-function atualizarEstatisticas(itens) {
-    const total = itens.length;
-    const disponiveis = itens.filter(i => i.disponivel).length;
-    const esgotados = total - disponiveis;
-
-    statTotal.innerText = total;
-    statDisponiveis.innerText = disponiveis;
-    statEsgotados.innerText = esgotados;
-}
-
-function exibirErroConexao(msg) {
-    statusConexao.className = "mb-6 p-4 rounded-xl border border-rose-200 bg-rose-50 text-rose-800 text-xs flex items-center justify-between";
-    statusConexao.innerHTML = `
-        <div class="flex items-center gap-2">
-            <i class="fa-solid fa-triangle-exclamation text-rose-500 text-base"></i>
-            <div>
-                <p class="font-bold">Não foi possível conectar ao Backend (${API_BASE_URL})</p>
-                <p class="text-rose-600 mt-0.5">Certifique-se de que a API está rodando com: <code>uvicorn app.main:app --reload</code></p>
-            </div>
-        </div>
-        <button onclick="carregarItens()" class="px-3 py-1.5 bg-rose-600 text-white font-bold rounded-lg hover:bg-rose-500 transition">
-            Tentar Novamente
-        </button>
-    `;
-    statusConexao.classList.remove("hidden");
-}
-
-function ocultarErroConexao() {
-    statusConexao.classList.add("hidden");
-}
-
-function escapeHtml(texto) {
-    if (!texto) return "";
-    return texto
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-}
-
-// Fechar modal ao clicar fora do conteúdo
-modalItem.addEventListener("click", (e) => {
-    if (e.target === modalItem) {
-        fecharModal();
     }
-});
+}
 
-// Listener de busca com debounce (300ms)
-campoBusca.addEventListener("input", () => {
-    clearTimeout(debounceTimeout);
-    debounceTimeout = setTimeout(() => {
-        carregarItens();
-    }, 300);
-});
 
-filtroDisponivel.addEventListener("change", () => {
-    carregarItens();
-});
-
-// Inicialização automática ao carregar a página
+// =====================================================================
+// Ponto de Entrada: Inicialização no ciclo de vida do DOM
+// =====================================================================
 document.addEventListener("DOMContentLoaded", () => {
-    carregarItens();
+    configurarEventos();
+    carregarDadosIniciais();
 });

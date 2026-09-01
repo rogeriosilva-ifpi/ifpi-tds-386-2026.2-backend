@@ -92,10 +92,16 @@ app.add_middleware(
 )
 
 
+from fastapi.staticfiles import StaticFiles
+
 # =====================================================================
-# CONCEITO: Inclusão de Rotas Modulares
+# CONCEITO: Inclusão de Rotas Modulares e Arquivos Estáticos
+# O StaticFiles permite servir a interface HTML/CSS/JS diretamente pelo FastAPI,
+# facilitando testes em sala de aula sem precisar de outro servidor web.
+# Acesse em: http://127.0.0.1:8000/frontend/
 # =====================================================================
 app.include_router(cardapio.router)
+app.mount("/frontend", StaticFiles(directory="frontend", html=True), name="frontend")
 
 
 # Endpoints informativos básicos (preservando o histórico da primeira aula)
