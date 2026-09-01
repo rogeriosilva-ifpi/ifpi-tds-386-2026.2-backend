@@ -132,3 +132,38 @@ Para rodar a suíte de testes:
 ```bash
 pytest -v
 ```
+
+---
+
+### 5. Executar com Docker (Local)
+
+Construa e execute a imagem Docker localmente:
+```bash
+# 1. Construir a imagem Docker
+docker build -t cardapio-api .
+
+# 2. Executar o container apontando para seu banco (ou SQLite de teste)
+docker run --rm -p 8000:8000 -e PORT=8000 -e DATABASE_URL=sqlite:///./cardapio.db cardapio-api
+```
+Acesse em: [http://localhost:8000/frontend/](http://localhost:8000/frontend/)
+
+---
+
+### 6. Publicar na Nuvem (Deploy no Render com Supabase)
+
+1. **Obter Banco no Supabase:**
+   - Crie um projeto em [supabase.com](https://supabase.com).
+   - Copie a **Connection String (URI)** em **Project Settings $\rightarrow$ Database**.
+2. **Criar Web Service no Render:**
+   - Acesse [render.com](https://render.com) e crie um **New Web Service** apontando para o repositório.
+   - O Render detecta o `Dockerfile` automaticamente.
+   - Adicione a variável de ambiente:
+     - `DATABASE_URL`: Cole a URI do Supabase (`postgresql://postgres.[ref]:[senha]@...pooler.supabase.com:6543/postgres?sslmode=require`).
+     - `ENVIRONMENT`: `production`
+     - `DEBUG`: `false`
+3. **Pronto!**
+   - O Render compila a imagem, executa `alembic upgrade head` no Supabase e disponibiliza sua aplicação online com HTTPS grátis:
+     - **API:** `https://sua-api.onrender.com/`
+     - **Frontend Reativo:** `https://sua-api.onrender.com/frontend/`
+     - **Swagger:** `https://sua-api.onrender.com/docs`
+

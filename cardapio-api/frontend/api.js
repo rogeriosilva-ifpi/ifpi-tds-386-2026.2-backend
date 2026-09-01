@@ -7,11 +7,18 @@
 // - Retorna Promises (usando async/await) para quem o chamou (app.js).
 // =====================================================================
 
-// Se aberto direto pela porta do FastAPI (8000), usa a mesma origem.
-// Caso contrário (ex: Live Server ou porta 3000), direciona para http://127.0.0.1:8000
-const API_BASE_URL = window.location.origin.includes(":8000") 
-    ? window.location.origin 
-    : "http://127.0.0.1:8000";
+// =====================================================================
+// CONCEITO: Resolução Dinâmica da URL da API (Local vs Nuvem / Render)
+// - Em desenvolvimento com servidores separados (Live Server 5500, Vite 5173, Python 3000):
+//   redireciona para http://127.0.0.1:8000.
+// - Em produção no Render (https://...onrender.com) ou servido diretamente pelo FastAPI:
+//   utiliza a própria origem (window.location.origin), garantindo HTTPS e zero CORS.
+// =====================================================================
+const portasDevSeparadas = ["3000", "5500", "5173"];
+const API_BASE_URL = portasDevSeparadas.includes(window.location.port) 
+    ? "http://127.0.0.1:8000" 
+    : window.location.origin;
+
 
 
 /**
