@@ -28,6 +28,7 @@ const elementos = {
     itemPreco: document.getElementById("item-preco"),
     itemCategoria: document.getElementById("item-categoria"),
     itemDisponivel: document.getElementById("item-disponivel"),
+    itemTempo: document.getElementById("item-tempo"),
 };
 
 
@@ -161,13 +162,22 @@ export function renderizarCards(estado) {
             currency: "BRL"
         });
 
+        const tempoBadge = item.tempo_preparo_minutos 
+            ? `<span class="inline-flex items-center gap-1 text-[11px] text-slate-500 font-medium bg-slate-100 px-2 py-0.5 rounded-full">
+                <i class="fa-regular fa-clock text-amber-500"></i> ${item.tempo_preparo_minutos} min
+               </span>` 
+            : "";
+
         // O uso de data-action e data-id viabiliza a delegação de eventos desacoplada
         card.innerHTML = `
             <div>
                 <div class="flex justify-between items-start gap-2 mb-2">
-                    <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full ${corBadge}">
-                        ${escapeHtml(item.categoria)}
-                    </span>
+                    <div class="flex items-center gap-1.5 flex-wrap">
+                        <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full ${corBadge}">
+                            ${escapeHtml(item.categoria)}
+                        </span>
+                        ${tempoBadge}
+                    </div>
                     <span class="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
                         item.disponivel ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"
                     }">
@@ -236,11 +246,17 @@ export function renderizarModal(estado) {
             elementos.itemPreco.value = estado.itemEmEdicao.preco;
             elementos.itemCategoria.value = estado.itemEmEdicao.categoria;
             elementos.itemDisponivel.checked = estado.itemEmEdicao.disponivel;
+            if (elementos.itemTempo) {
+                elementos.itemTempo.value = estado.itemEmEdicao.tempo_preparo_minutos || "";
+            }
         } else {
             elementos.modalTitulo.innerText = "Novo Item no Cardápio";
             elementos.formItem.reset();
             elementos.itemId.value = "";
             elementos.itemDisponivel.checked = true;
+            if (elementos.itemTempo) {
+                elementos.itemTempo.value = "";
+            }
         }
 
         setTimeout(() => elementos.itemNome.focus(), 50);

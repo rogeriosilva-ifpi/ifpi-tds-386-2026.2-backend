@@ -40,6 +40,7 @@ def test_criar_e_consultar_item(cliente):
         "preco": 16.50,
         "categoria": "Sobremesas",
         "disponivel": True,
+        "tempo_preparo_minutos": 10,
     }
 
     # 1. Enviar requisição POST com corpo JSON
@@ -48,6 +49,7 @@ def test_criar_e_consultar_item(cliente):
     item_criado = resposta_post.json()
     assert "id" in item_criado
     assert item_criado["nome"] == novo_item["nome"]
+    assert item_criado["tempo_preparo_minutos"] == 10
     item_id = item_criado["id"]
 
     # 2. Consultar o item recém-criado por ID
@@ -56,6 +58,7 @@ def test_criar_e_consultar_item(cliente):
     item_buscado = resposta_get.json()
     assert item_buscado["id"] == item_id
     assert item_buscado["preco"] == 16.50
+    assert item_buscado["tempo_preparo_minutos"] == 10
 
 
 def test_alternar_disponibilidade(cliente):

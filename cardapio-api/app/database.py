@@ -1,27 +1,34 @@
 from sqlmodel import SQLModel, create_engine, Session
+from app.config import settings
 
 # =====================================================================
-# CONCEITO: Conexão e Persistência com SQLite
-# SQLite é um banco de dados relacional embutido (baseado em arquivo).
-# Não requer servidor externo, tornando-o perfeito para aprendizado.
+# CONCEITO DIDÁTICO: Conexão Flexível com Banco de Dados Relacional
+#
+# 1. Suporte Híbrido:
+#    - PostgreSQL (Local ou Supabase na Nuvem): Usado em desenvolvimento profissional e produção.
+#    - SQLite: Usado como fallback didático local e em suítes de testes rápidos.
+#
+# 2. Argumentos de Conexão:
+#    - SQLite requer connect_args={"check_same_thread": False} devido a threads assíncronas do FastAPI.
+#    - PostgreSQL não precisa desse argumento.
 # =====================================================================
-ARQUIVO_BANCO = "cardapio.db"
-DATABASE_URL = f"sqlite:///{ARQUIVO_BANCO}"
 
-# connect_args={"check_same_thread": False} é obrigatório no SQLite
-# para permitir que múltiplas requisições assíncronas usem a mesma conexão com segurança.
+connect_args = {}
+if settings.DATABASE_URL.startswith("sqlite"):
+    connect_args["check_same_thread"] = False
+
 engine = create_engine(
-    DATABASE_URL, 
-    echo=False, 
-    connect_args={"check_same_thread": False}
+    settings.DATABASE_URL, 
+    echo=settings.DEBUG, 
+    connect_args=connect_args
 )
 
 
 def criar_tabelas() -> None:
     """
-    CONCEITO: DDL (Data Definition Language) Automático.
-    O SQLModel lê todas as classes que herdaram de SQLModel com table=True
-    e gera as instruções SQL CREATE TABLE no SQLite automaticamente.
+    Cria as tabelas caso ainda não existam.
+    Em ambientes profissionais com PostgreSQL/Supabase, essa função dá lugar
+    às migrações versionadas do Alembic (alembic upgrade head).
     """
     SQLModel.metadata.create_all(engine)
 
@@ -29,8 +36,7 @@ def criar_tabelas() -> None:
 def obter_sessao():
     """
     CONCEITO: Injeção de Dependência (Session Lifecycle).
-    Esta função geradora (com yield) cria uma nova sessão do banco para cada
-    requisição HTTP e garante seu fechamento ao término, liberando recursos.
+    Gera uma sessão para cada requisição HTTP e garante o fechamento automático.
     """
     with Session(engine) as sessao:
         yield sessao

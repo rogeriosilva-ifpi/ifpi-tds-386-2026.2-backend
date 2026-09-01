@@ -26,3 +26,9 @@ Thumbs.db
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Variáveis de Ambiente (Segredos e Senhas)
+.env
+.env.local
+.env.*.local
+

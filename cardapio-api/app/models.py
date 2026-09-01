@@ -1,10 +1,14 @@
 from sqlmodel import SQLModel, Field
 
 # =====================================================================
-# CONCEITO: SQLModel (União entre Pydantic e SQLAlchemy)
+# CONCEITO DIDÁTICO: SQLModel (União entre Pydantic e SQLAlchemy)
 # 1. Classes que herdam de SQLModel são Schemas Pydantic por padrão (validação).
 # 2. Ao adicionar table=True, a classe também se torna uma Tabela no Banco de Dados.
-# Isso elimina duplicação de código e simplifica o aprendizado.
+#
+# CONCEITO: Evolução de Esquema de Banco
+# Ao adicionar um novo campo (como tempo_preparo_minutos) num modelo existente,
+# o banco de dados precisa de uma migração (via Alembic) para rodar o
+# comando SQL: ALTER TABLE itens_cardapio ADD COLUMN tempo_preparo_minutos INTEGER;
 # =====================================================================
 
 
@@ -32,12 +36,17 @@ class ItemCardapioBase(SQLModel):
         default=True, 
         description="Indica se o item está disponível para pedido"
     )
+    # Atributo adicionado na evolução de esquema via Migração Alembic:
+    tempo_preparo_minutos: int | None = Field(
+        default=None, 
+        ge=1, 
+        description="Tempo estimado de preparo em minutos (ex: 15, 30)"
+    )
 
 
 # =====================================================================
-# CONCEITO: Modelo ORM (Tabela no SQLite)
-# table=True avisa o SQLModel que esta classe vira uma tabela real no banco.
-# Note que o 'id' só existe aqui e no Response, não no Create (pois é autoincrementado).
+# CONCEITO: Modelo ORM (Tabela no PostgreSQL / SQLite)
+# table=True avisa o SQLModel que esta classe mapeia a tabela itens_cardapio.
 # =====================================================================
 class ItemCardapio(ItemCardapioBase, table=True):
     __tablename__ = "itens_cardapio"
@@ -47,9 +56,9 @@ class ItemCardapio(ItemCardapioBase, table=True):
 
 # =====================================================================
 # CONCEITO: Schemas de Validação de Entrada e Saída (DTOs)
-# - ItemCardapioCreate: o que o cliente DEVE enviar no POST (sem o id).
+# - ItemCardapioCreate: o que o cliente envia no POST (sem id).
 # - ItemCardapioUpdate: campos opcionais que podem ser atualizados no PUT/PATCH.
-# - ItemCardapioResponse: o que a API GARANTE que vai devolver (sempre com id).
+# - ItemCardapioResponse: o que a API devolve (garantindo id).
 # =====================================================================
 class ItemCardapioCreate(ItemCardapioBase):
     """Schema para validação do corpo da requisição no cadastro (POST)."""
@@ -63,6 +72,7 @@ class ItemCardapioUpdate(SQLModel):
     preco: float | None = None
     categoria: str | None = None
     disponivel: bool | None = None
+    tempo_preparo_minutos: int | None = None
 
 
 class ItemCardapioResponse(ItemCardapioBase):

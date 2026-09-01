@@ -144,12 +144,14 @@ async function lidarComSubmissaoFormulario(evento) {
     evento.preventDefault();
 
     const id = document.getElementById("item-id").value;
+    const tempoVal = document.getElementById("item-tempo").value;
     const payload = {
         nome: document.getElementById("item-nome").value.trim(),
         descricao: document.getElementById("item-descricao").value.trim() || null,
         preco: parseFloat(document.getElementById("item-preco").value),
         categoria: document.getElementById("item-categoria").value,
         disponivel: document.getElementById("item-disponivel").checked,
+        tempo_preparo_minutos: tempoVal ? parseInt(tempoVal, 10) : null,
     };
 
     try {

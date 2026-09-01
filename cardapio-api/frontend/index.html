@@ -158,7 +158,7 @@
                               class="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"></textarea>
                 </div>
 
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
                         <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Preço (R$) *</label>
                         <input type="number" step="0.01" min="0.01" id="item-preco" required placeholder="0.00"
@@ -173,6 +173,12 @@
                             <option value="Bebidas">Bebidas</option>
                             <option value="Sobremesas">Sobremesas</option>
                         </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Preparo (min)</label>
+                        <input type="number" min="1" id="item-tempo" placeholder="Ex: 15"
+                               class="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
                     </div>
                 </div>
 
