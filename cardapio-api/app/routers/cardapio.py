@@ -27,9 +27,13 @@ def listar_cardapio(
     categoria: str | None = Query(default=None, description="Filtrar por categoria (ex: Lanches, Bebidas)"),
     disponivel: bool | None = Query(default=None, description="Filtrar por disponibilidade (true ou false)"),
     busca: str | None = Query(default=None, description="Buscar por termo no nome ou descrição"),
+    preco_maximo: float | None = Query(default=None, description='Filtrar por no máximo este preço R$.'),
     sessao: Session = Depends(obter_sessao),
 ):
     query = select(ItemCardapio)
+
+    if preco_maximo:
+        query = query.where(ItemCardapio.preco <= preco_maximo)
 
     if categoria:
         query = query.where(ItemCardapio.categoria == categoria)
