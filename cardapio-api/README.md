@@ -64,13 +64,15 @@ cardapio-api/
 ├── main.py                 # Atalho de execução para 'uvicorn main:app'
 ├── _docs/                  # [AULAS E ESTUDOS] Materiais didáticos e roteiros
 │   ├── AULA_CARDAPIO_API.md    # Apresentação completa em 36 slides didáticos
+│   ├── AULA_ORM_SQLMODEL.md    # Do SQL Puro ao SQLModel Lado a Lado (30 slides)
 │   └── GUIA_PASSO_A_PASSO.md   # Roteiro de laboratório passo a passo (41 slides)
 ├── _specs/                 # [ESPECIFICAÇÕES] Planos técnicos de evolução
 │   ├── PLANO_DIDATICO.md
 │   ├── PLANO_FRONTEND_REATIVO.md
 │   ├── PLANO_POSTGRES_MIGRACOES.md
 │   ├── PLANO_DEPLOY_RENDER_DOCKER.md
-│   └── PLANO_MATERIAL_DE_AULA.md
+│   ├── PLANO_MATERIAL_DE_AULA.md
+│   └── PLANO_SLIDES_ORM_SQLMODEL.md
 └── requirements.txt        # Dependências do projeto
 ```
 
