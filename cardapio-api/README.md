@@ -62,9 +62,15 @@ cardapio-api/
 │   ├── __init__.py
 │   └── test_cardapio.py    # Testes automatizados com TestClient
 ├── main.py                 # Atalho de execução para 'uvicorn main:app'
-├── PLANO_DIDATICO.md       # Documento de planejamento didático original
-├── PLANO_FRONTEND_REATIVO.md # Planejamento da arquitetura reativa
-├── PLANO_POSTGRES_MIGRACOES.md # Planejamento do PostgreSQL, Alembic e .env
+├── _docs/                  # [AULAS E ESTUDOS] Materiais didáticos e roteiros
+│   ├── AULA_CARDAPIO_API.md    # Apresentação completa em 36 slides didáticos
+│   └── GUIA_PASSO_A_PASSO.md   # Roteiro de laboratório passo a passo (41 slides)
+├── _specs/                 # [ESPECIFICAÇÕES] Planos técnicos de evolução
+│   ├── PLANO_DIDATICO.md
+│   ├── PLANO_FRONTEND_REATIVO.md
+│   ├── PLANO_POSTGRES_MIGRACOES.md
+│   ├── PLANO_DEPLOY_RENDER_DOCKER.md
+│   └── PLANO_MATERIAL_DE_AULA.md
 └── requirements.txt        # Dependências do projeto
 ```
 
