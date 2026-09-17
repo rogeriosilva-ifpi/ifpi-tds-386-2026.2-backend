@@ -5,7 +5,9 @@ from sqlmodel import SQLModel
 # Importar configurações e modelos da aplicação
 from app.config import settings
 from app.database import engine
-from app.models import ItemCardapio  # Garante que os modelos sejam registrados no SQLModel.metadata
+from app.infrastructure.repositories.sqlmodel_models import (
+    ItemCardapioTable,
+)  # Garante que os modelos sejam registrados no SQLModel.metadata
 
 # =====================================================================
 # CONCEITO DIDÁTICO: Integração do Alembic com SQLModel & .env
