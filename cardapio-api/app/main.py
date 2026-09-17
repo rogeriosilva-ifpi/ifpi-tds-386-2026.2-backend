@@ -7,7 +7,7 @@ from sqlmodel import Session, select
 from app.config import settings
 from app.database import engine, criar_tabelas
 from app.models import ItemCardapio
-from app.routers import cardapio, auth
+from app.routers import cardapio, auth, clientes
 
 
 # =====================================================================
@@ -98,8 +98,9 @@ app.add_middleware(
 # =====================================================================
 # CONCEITO: Inclusão de Rotas Modulares e Arquivos Estáticos
 # =====================================================================
-app.include_router(cardapio.router)
 app.include_router(auth.router)
+app.include_router(cardapio.router)
+app.include_router(clientes.router)
 app.mount("/frontend", StaticFiles(directory="frontend", html=True), name="frontend")
 
 

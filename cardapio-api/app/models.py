@@ -78,3 +78,6 @@ class ItemCardapioUpdate(SQLModel):
 class ItemCardapioResponse(ItemCardapioBase):
     """Schema retornado pela API nas consultas. Garante a presença do campo 'id'."""
     id: int
+
+    
+

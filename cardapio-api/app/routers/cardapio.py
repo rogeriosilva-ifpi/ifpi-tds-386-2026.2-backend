@@ -22,7 +22,10 @@ router = APIRouter(prefix="/cardapio", tags=["Cardápio"])
 # Os parâmetros de consulta (após o '?' na URL) são opcionais.
 # Exemplo: /cardapio?categoria=Bebidas&disponivel=true&busca=suco
 # =====================================================================
-@router.get("/", response_model=list[ItemCardapioResponse], summary="Listar itens do cardápio")
+@router.get("/", 
+            response_model=list[ItemCardapioResponse], 
+            status_code=status.HTTP_200_OK,
+            summary="Listar itens do cardápio do restaurante")
 def listar_cardapio(
     categoria: str | None = Query(default=None, description="Filtrar por categoria (ex: Lanches, Bebidas)"),
     disponivel: bool | None = Query(default=None, description="Filtrar por disponibilidade (true ou false)"),
@@ -30,7 +33,7 @@ def listar_cardapio(
     preco_maximo: float | None = Query(default=None, description='Filtrar por no máximo este preço R$.'),
     sessao: Session = Depends(obter_sessao),
 ):
-    query = select(ItemCardapio)
+    query = select(ItemCardapio) # select * from item_cardapio
 
     if preco_maximo:
         query = query.where(ItemCardapio.preco <= preco_maximo)
@@ -49,9 +52,9 @@ def listar_cardapio(
                 ItemCardapio.descricao.ilike(termo)
             )
         )
-
+    
     # Ordenar por ID para manter listagem consistente
-    query = query.order_by(ItemCardapio.id)
+    query = query.order_by(ItemCardapio.nome)
     itens = sessao.exec(query).all()
     return itens
 
@@ -61,7 +64,9 @@ def listar_cardapio(
 # O ID vem direto no caminho da URL: /cardapio/10
 # Se não existir, lançamos semanticamente HTTPException com status 404.
 # =====================================================================
-@router.get("/{item_id}", response_model=ItemCardapioResponse, summary="Obter item por ID")
+@router.get("/{item_id}", 
+            response_model=ItemCardapioResponse, 
+            summary="Obter item por ID")
 def obter_item(
     item_id: int, 
     sessao: Session = Depends(obter_sessao)
