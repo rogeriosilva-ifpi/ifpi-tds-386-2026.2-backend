@@ -34,7 +34,7 @@ Done when
 1. Entidade de domínio atualizada/criada com validações de regras e testes em `tests/test_domain.py`.
 2. Caso de uso implementado com porta injetada e testes unitários em `tests/test_use_cases.py`.
 3. Adaptador de persistência atualizado (e migração Alembic criada, caso o schema do banco tenha mudado).
-4. Schema Pydantic, controller e router registrados sob `app/api/`.
+4. Schema Pydantic e router registrados sob `app/api/`.
 5. Suíte de testes passando com `pytest -v` e sem violações no `ruff check app tests`.
 </USER_REQUEST>
 ```
@@ -69,7 +69,7 @@ Context
      - Atualizar `app/api/exception_handlers.py` adicionando os novos códigos no `MAPA_ERRO_STATUS`:
        - `"DESCONTO_INVALIDO": status.HTTP_400_BAD_REQUEST`
        - `"ITEM_INDISPONIVEL": status.HTTP_400_BAD_REQUEST`
-     - Adicionar método `aplicar_desconto` no controller e expor rota `PATCH /cardapio/{id}/desconto` com status HTTP 200 em `app/api/routers/cardapio_router.py`.
+     - Expor rota `PATCH /cardapio/{id}/desconto` com status HTTP 200 em `app/api/routers/cardapio_router.py` acionando o caso de uso via `Depends()`.
 
 Constraints
 - Não utilizar `HTTPException` na camada de domínio ou aplicação.

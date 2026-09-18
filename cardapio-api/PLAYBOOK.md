@@ -97,9 +97,8 @@ alembic check
 #### Passo 3.5: Camada de API / Adaptadores de Entrada (`app/api/`)
 1. Defina os schemas Pydantic de entrada/saída em `app/api/schemas/cardapio_schemas.py`.
 2. Se criou uma nova exceção de domínio, mapeie seu `codigo` para o status HTTP no `MAPA_ERRO_STATUS` em `app/api/exception_handlers.py`.
-3. Registre o factory do novo caso de uso em `app/api/dependencies.py` usando `fastapi.Depends`.
-4. Adicione o método correspondente no controller `app/api/controllers/cardapio_controller.py`.
-5. Adicione a rota no APIRouter fino em `app/api/routers/cardapio_router.py`.
+3. Registre a função provedora do novo caso de uso em `app/api/dependencies.py` usando `fastapi.Depends`.
+4. Adicione a rota no APIRouter em `app/api/routers/cardapio_router.py`, injetando o caso de uso e retornando o schema de resposta.
 
 ---
 
@@ -235,7 +234,7 @@ Mesmo com testes verdes, o desenvolvedor humano deve realizar uma inspeção pon
 | **Criação do Domínio** | Codifica a dataclass e exceptions manualmente. | Gera a entidade, métodos de domínio e regras com tipagem estrita. |
 | **Criação do Caso de Uso** | Cria arquivo isolado com `async def execute()`. | Cria caso de uso CQS e gera mock/fake em `test_use_cases.py`. |
 | **Evolução do Banco (DDL)** | Edita modelo e roda `alembic revision --autogenerate`. | Edita modelo em `infrastructure`, gera migração e roda `alembic check`. |
-| **Criação da Rota** | Atualiza schemas Pydantic, controller e APIRouter. | Cria DTOs, injeta dependência via `Depends` e conecta ao router fino. |
+| **Criação da Rota** | Atualiza schemas Pydantic e adiciona endpoint no APIRouter com Depends. | Cria DTOs, injeta dependência via `Depends` e conecta ao router. |
 | **Validação** | Roda testes manualmente no terminal (`pytest -v`). | Executa suíte de testes de máquina e corrige regressões autonomamente. |
 | **Controle de Versão** | Faz `git add`, escreve mensagem de commit e faz push. | Cria marcos semânticos com Conventional Commits para cada fase. |
 

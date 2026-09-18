@@ -47,9 +47,7 @@ app/
 │   ├── exception_handlers.py#    Mapeamento de ErroDominio.codigo -> HTTP Status Code
 │   ├── schemas/             #    Pydantic Schemas de entrada e saída (DTOs da API)
 │   │   └── cardapio_schemas.py
-│   ├── controllers/         #    Controllers assíncronos desacoplados
-│   │   └── cardapio_controller.py
-│   └── routers/             #    APIRouters finos
+│   └── routers/             #    APIRouters (orquestram entrada HTTP e acionam use cases via Depends)
 │       ├── cardapio_router.py
 │       ├── auth_router.py
 │       └── clientes_router.py

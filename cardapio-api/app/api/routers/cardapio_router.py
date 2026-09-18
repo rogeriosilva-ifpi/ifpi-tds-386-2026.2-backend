@@ -1,15 +1,16 @@
 """
-APIRouter de Cardápio (Adaptador de Entrada Fino).
+APIRouter de Cardápio (Adaptador de Entrada HTTP).
 
-CONCEITO: APIRouter fino que apenas declara rotas, validações de query/path e delega ao Controller.
+CONCEITO: Recebe as requisições HTTP, valida payloads com Pydantic,
+executa os Casos de Uso (CQS) e serializa para Schemas de resposta.
 """
 from fastapi import APIRouter, Depends, Query, status
+from app.domain.cardapio import ItemCardapio
 from app.api.schemas.cardapio_schemas import (
     ItemCardapioCreate,
     ItemCardapioUpdate,
     ItemCardapioResponse,
 )
-from app.api.controllers.cardapio_controller import CardapioController
 from app.api.dependencies import (
     obter_listar_cardapio_use_case,
     obter_obter_item_use_case,
@@ -28,7 +29,19 @@ from app.application.use_cases import (
 )
 
 router = APIRouter(prefix="/cardapio", tags=["Cardápio"])
-controller = CardapioController()
+
+
+def _to_response(item: ItemCardapio) -> ItemCardapioResponse:
+    """Converte a entidade de domínio em DTO de resposta da API."""
+    return ItemCardapioResponse(
+        id=item.id,  # type: ignore[arg-type]
+        nome=item.nome,
+        descricao=item.descricao,
+        preco=item.preco,
+        categoria=item.categoria,
+        disponivel=item.disponivel,
+        tempo_preparo_minutos=item.tempo_preparo_minutos,
+    )
 
 
 @router.get(
@@ -44,13 +57,13 @@ async def listar_cardapio(
     preco_maximo: float | None = Query(default=None, description="Filtrar por no máximo este preço R$."),
     use_case: ListarCardapioUseCase = Depends(obter_listar_cardapio_use_case),
 ) -> list[ItemCardapioResponse]:
-    return await controller.listar(
+    itens = await use_case.execute(
         categoria=categoria,
         disponivel=disponivel,
         busca=busca,
         preco_maximo=preco_maximo,
-        use_case=use_case,
     )
+    return [_to_response(it) for it in itens]
 
 
 @router.get(
@@ -63,7 +76,8 @@ async def obter_item(
     item_id: int,
     use_case: ObterItemCardapioUseCase = Depends(obter_obter_item_use_case),
 ) -> ItemCardapioResponse:
-    return await controller.obter_por_id(item_id=item_id, use_case=use_case)
+    item = await use_case.execute(item_id=item_id)
+    return _to_response(item)
 
 
 @router.post(
@@ -76,7 +90,16 @@ async def criar_item(
     dados: ItemCardapioCreate,
     use_case: CriarItemCardapioUseCase = Depends(obter_criar_item_use_case),
 ) -> ItemCardapioResponse:
-    return await controller.criar(dados=dados, use_case=use_case)
+    novo_item = ItemCardapio(
+        nome=dados.nome,
+        descricao=dados.descricao,
+        preco=dados.preco,
+        categoria=dados.categoria,
+        disponivel=dados.disponivel,
+        tempo_preparo_minutos=dados.tempo_preparo_minutos,
+    )
+    item_criado = await use_case.execute(novo_item)
+    return _to_response(item_criado)
 
 
 @router.put(
@@ -90,7 +113,9 @@ async def atualizar_item(
     dados: ItemCardapioUpdate,
     use_case: AtualizarItemCardapioUseCase = Depends(obter_atualizar_item_use_case),
 ) -> ItemCardapioResponse:
-    return await controller.atualizar(item_id=item_id, dados=dados, use_case=use_case)
+    dados_atualizados = dados.model_dump(exclude_unset=True)
+    item_atualizado = await use_case.execute(item_id=item_id, **dados_atualizados)
+    return _to_response(item_atualizado)
 
 
 @router.patch(
@@ -103,7 +128,8 @@ async def alternar_disponibilidade(
     item_id: int,
     use_case: AlternarDisponibilidadeUseCase = Depends(obter_alternar_disponibilidade_use_case),
 ) -> ItemCardapioResponse:
-    return await controller.alternar_disponibilidade(item_id=item_id, use_case=use_case)
+    item_atualizado = await use_case.execute(item_id=item_id)
+    return _to_response(item_atualizado)
 
 
 @router.delete(
@@ -115,4 +141,4 @@ async def remover_item(
     item_id: int,
     use_case: RemoverItemCardapioUseCase = Depends(obter_remover_item_use_case),
 ) -> None:
-    await controller.remover(item_id=item_id, use_case=use_case)
+    await use_case.execute(item_id=item_id)

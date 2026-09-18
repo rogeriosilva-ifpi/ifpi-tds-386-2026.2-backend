@@ -109,12 +109,9 @@ cardapio-api/
 │       ├── schemas/
 │       │   ├── __init__.py
 │       │   └── cardapio_schemas.py         # Pydantic Schemas de entrada e saída (DTOs da API)
-│       ├── controllers/
-│       │   ├── __init__.py
-│       │   └── cardapio_controller.py      # Controller assíncrono que delega aos Use Cases
 │       └── routers/
 │           ├── __init__.py
-│           ├── cardapio_router.py          # APIRouter fino para /cardapio
+│           ├── cardapio_router.py          # APIRouter para /cardapio (orquestra entrada e aciona use cases)
 │           ├── auth_router.py              # APIRouter para /auth (legado preservado)
 │           └── clientes_router.py          # APIRouter para /clientes (legado preservado)
 ├── tests/
@@ -142,7 +139,7 @@ cardapio-api/
 - **O que NÃO entra:** Regras de negócio de domínio, lógica de orquestração de casos de uso, e contratos de endpoints HTTP da API.
 
 #### Camada `api/`
-- **O que entra:** Adaptadores de entrada HTTP. Contém os routers do FastAPI (`APIRouter`) finos, controllers com métodos assíncronos que recebem os payloads da requisição e acionam os casos de uso, schemas Pydantic de entrada e saída (DTOs da API), injeção de dependência declarativa via `fastapi.Depends()`, e o exception handler global registrado no FastAPI que mapeia o atributo `codigo` das exceções de domínio para os status HTTP corretos via dicionário estático (sem cadeia de `isinstance`).
+- **O que entra:** Adaptadores de entrada HTTP. Contém os routers do FastAPI (`APIRouter`) que recebem os payloads validados pela requisição, acionam diretamente os casos de uso via injeção com `fastapi.Depends()`, schemas Pydantic de entrada e saída (DTOs da API), e o exception handler global registrado no FastAPI que mapeia o atributo `codigo` das exceções de domínio para os status HTTP corretos via dicionário estático (sem cadeia de `isinstance`).
 - **O que NÃO entra:** Lógica de negócio, consultas diretas ao banco de dados, transações ORM (`sessao.commit()`), ou instâncias diretas de modelos de banco.
 
 ---
@@ -228,14 +225,13 @@ flowchart LR
 ---
 
 ### Fase 4: Camada de API e Adaptadores de Entrada (`api/`)
-- **Objetivo:** Implementar os schemas de requisição/resposta, controllers assíncronos, routers finos, injeção de dependência nativa com `Depends()`, e o exception handler global para mapear `ErroDominio.codigo` para status HTTP sem usar `isinstance`.
+- **Objetivo:** Implementar os schemas de requisição/resposta (DTOs), routers unificados do FastAPI que orquestram a requisição e invocam os casos de uso via injeção de dependência nativa com `Depends()`, e o exception handler global para mapear `ErroDominio.codigo` para status HTTP sem usar `isinstance`.
 - **Arquivos afetados:**
   - `[NOVO] app/api/__init__.py`
   - `[NOVO] app/api/schemas/cardapio_schemas.py`: `ItemCardapioCreate`, `ItemCardapioUpdate`, `ItemCardapioResponse`.
   - `[NOVO] app/api/exception_handlers.py`: Exception handler global com dicionário estático `MAPA_ERRO_STATUS = {"ITEM_NAO_ENCONTRADO": 404, ...}` retornando `{"detail": exc.mensagem, "codigo": exc.codigo}`.
   - `[NOVO] app/api/dependencies.py`: Funções geradoras para `FastAPI.Depends` que fornecem a sessão, instanciam o repositório e injetam nos casos de uso.
-  - `[NOVO] app/api/controllers/cardapio_controller.py`: Métodos assíncronos recebendo schemas/parâmetros e chamando os casos de uso.
-  - `[NOVO] app/api/routers/cardapio_router.py`: Roteador limpo delegando para os controllers.
+  - `[NOVO] app/api/routers/cardapio_router.py`: Roteador que recebe parâmetros, executa os casos de uso e retorna schemas de resposta.
 - **Critério de pronto verificável por máquina:**
   - Comando: `pytest tests/test_cardapio.py`
   - Saída esperada: Todos os testes existentes da API continuam passando com exatamente as mesmas URLs, status codes e payloads.
