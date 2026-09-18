@@ -13,9 +13,9 @@ from app.domain.errors import ErroDominio
 # Dicionário estático de mapeamento semântico
 MAPA_ERRO_STATUS: dict[str, int] = {
     "ITEM_NAO_ENCONTRADO": status.HTTP_404_NOT_FOUND,
-    "PRECO_INVALIDO": status.HTTP_422_UNPROCESSABLE_ENTITY,
-    "NOME_INVALIDO": status.HTTP_422_UNPROCESSABLE_ENTITY,
-    "TEMPO_PREPARO_INVALIDO": status.HTTP_422_UNPROCESSABLE_ENTITY,
+    "PRECO_INVALIDO": 422,
+    "NOME_INVALIDO": 422,
+    "TEMPO_PREPARO_INVALIDO": 422,
     "REGRA_VIOLADA": status.HTTP_400_BAD_REQUEST,
 }
 

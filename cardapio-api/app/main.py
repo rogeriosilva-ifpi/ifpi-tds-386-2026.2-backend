@@ -6,14 +6,16 @@ from sqlmodel import Session, select
 
 from app.config import settings
 from app.database import engine, criar_tabelas
-from app.models import ItemCardapio
-from app.routers import cardapio, auth, clientes
+from app.domain.errors import ErroDominio
+from app.infrastructure.seed import popular_seed_se_vazio
+from app.api.exception_handlers import erro_dominio_handler
+from app.api.routers import cardapio_router, auth_router, clientes_router
 
 
 # =====================================================================
-# CONCEITO DIDÁTICO: Lifespan e Carga Inicial de Dados (Seed)
+# CONCEITO: Lifespan e Carga Inicial de Dados (Seed)
 # O lifespan gerencia o ciclo de vida da API ao iniciar e desligar.
-# Se o banco estiver vazio, inserimos pratos didáticos com tempo de preparo.
+# Se o banco estiver vazio, inserimos pratos didáticos através do serviço de seed.
 # =====================================================================
 @asynccontextmanager
 async def ciclo_de_vida(app: FastAPI):
@@ -22,52 +24,7 @@ async def ciclo_de_vida(app: FastAPI):
 
     # Seed automático de demonstração
     with Session(engine) as sessao:
-        itens_existentes = sessao.exec(select(ItemCardapio)).first()
-        if not itens_existentes:
-            dados_iniciais = [
-                ItemCardapio(
-                    nome="Filé com Fritas",
-                    descricao="Filé mignon grelhado em tiras, servido com batatas fritas crocantes.",
-                    preco=38.50,
-                    categoria="Lanches",
-                    disponivel=True,
-                    tempo_preparo_minutos=25,
-                ),
-                ItemCardapio(
-                    nome="Pão c/ Carne de Sol (3und)",
-                    descricao="Mini pães recheados com carne de sol desfiada e nata especial.",
-                    preco=22.00,
-                    categoria="Lanches",
-                    disponivel=True,
-                    tempo_preparo_minutos=15,
-                ),
-                ItemCardapio(
-                    nome="Pastel de Queijo Coalho (6und)",
-                    descricao="Pastéis fritos na hora com recheio de queijo coalho nordestino.",
-                    preco=18.00,
-                    categoria="Lanches",
-                    disponivel=False, # Demonstrar prato esgotado
-                    tempo_preparo_minutos=12,
-                ),
-                ItemCardapio(
-                    nome="Suco de Caju da Terra (500ml)",
-                    descricao="Suco natural de caju fresco da região de Teresina.",
-                    preco=8.50,
-                    categoria="Bebidas",
-                    disponivel=True,
-                    tempo_preparo_minutos=5,
-                ),
-                ItemCardapio(
-                    nome="Pudim de Leite Condensado",
-                    descricao="Fatia generosa de pudim tradicional com calda de caramelo.",
-                    preco=10.00,
-                    categoria="Sobremesas",
-                    disponivel=True,
-                    tempo_preparo_minutos=2,
-                ),
-            ]
-            sessao.add_all(dados_iniciais)
-            sessao.commit()
+        popular_seed_se_vazio(sessao)
 
     yield
 
@@ -81,6 +38,9 @@ app = FastAPI(
     version="2.1.0",
     lifespan=ciclo_de_vida,
 )
+
+# Exception handler global para erros da camada de domínio
+app.add_exception_handler(ErroDominio, erro_dominio_handler)  # type: ignore[arg-type]
 
 
 # =====================================================================
@@ -98,9 +58,9 @@ app.add_middleware(
 # =====================================================================
 # CONCEITO: Inclusão de Rotas Modulares e Arquivos Estáticos
 # =====================================================================
-app.include_router(auth.router)
-app.include_router(cardapio.router)
-app.include_router(clientes.router)
+app.include_router(auth_router)
+app.include_router(cardapio_router)
+app.include_router(clientes_router)
 app.mount("/frontend", StaticFiles(directory="frontend", html=True), name="frontend")
 
 
