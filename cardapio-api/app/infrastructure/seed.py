@@ -2,7 +2,7 @@
 Serviço de Inicialização e Seed do Banco de Dados.
 """
 from sqlmodel import Session, select
-from app.infrastructure.repositories.sqlmodel_models import ItemCardapioTable
+from app.domain.cardapio import ItemCardapio
 
 
 DADOS_INICIAIS = [
@@ -51,8 +51,8 @@ DADOS_INICIAIS = [
 
 def popular_seed_se_vazio(sessao: Session) -> None:
     """Insere os pratos demonstrativos didáticos caso o banco esteja vazio."""
-    itens_existentes = sessao.exec(select(ItemCardapioTable)).first()
+    itens_existentes = sessao.exec(select(ItemCardapio)).first()
     if not itens_existentes:
-        instancias = [ItemCardapioTable(**dados) for dados in DADOS_INICIAIS]
+        instancias = [ItemCardapio(**dados) for dados in DADOS_INICIAIS]
         sessao.add_all(instancias)
         sessao.commit()

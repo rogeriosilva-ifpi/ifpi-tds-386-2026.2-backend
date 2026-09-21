@@ -1,7 +1,7 @@
 # 🤖 AGENTS.md — Instruções para Agentes de IA e Desenvolvedores
 
 Bem-vindo ao repositório do **Cardápio Digital (IFPI TDS 386)**.  
-Este projeto segue rigorosamente a **Arquitetura Hexagonal (Ports & Adapters)** com casos de uso no padrão **CQS (Command-Query Separation)** de método único (`execute()`), otimizada para legibilidade, testabilidade e autonomia de agentes de IA.
+Este projeto adota uma abordagem **Hexagonal Pragmática (FastAPI-Flavored Ports & Adapters)** com casos de uso no padrão **CQS (Command-Query Separation)** de método único (`execute()`), unificando modelos relacionais, entidades de domínio e schemas de validação através da hierarquia idiomática do **SQLModel**, eliminando duplicidades de código e camadas paralelas de mapeamento.
 
 ---
 
@@ -23,8 +23,8 @@ Este projeto segue rigorosamente a **Arquitetura Hexagonal (Ports & Adapters)** 
 
 ```text
 app/
-├── domain/                  # 1. NÚCLEO PURO (Zero dependências externas)
-│   ├── cardapio.py          #    Entidade pura ItemCardapio (dataclass ou Pydantic sem vínculos ORM)
+├── domain/                  # 1. NÚCLEO DE DOMÍNIO & MODELOS UNIFICADOS (SQLModel)
+│   ├── cardapio.py          #    ItemCardapioBase, ItemCardapio (table=True), DTOs (Create, Update, Response)
 │   └── errors.py            #    Erros com atributo semântico `codigo: str`
 ├── application/             # 2. CASOS DE USO (CQS) & PORTAS
 │   ├── ports/               #    Interfaces definidas estritamente como Protocol
@@ -36,16 +36,15 @@ app/
 │       ├── atualizar_item_cardapio.py
 │       ├── alternar_disponibilidade.py
 │       └── remover_item_cardapio.py
-├── infrastructure/          # 3. ADAPTADORES DE SAÍDA (Tabelas, Repositórios, DB)
+├── infrastructure/          # 3. ADAPTADORES DE SAÍDA (Repositórios, DB, Seed)
 │   ├── database.py          #    Engine, gerenciamento de sessões
 │   ├── seed.py              #    Carga inicial de pratos demonstrativos
 │   └── repositories/
-│       ├── sqlmodel_models.py           # Modelos de tabela DDL para o Alembic
-│       └── sqlmodel_cardapio_repository.py # Implementação concreta da porta
+│       └── sqlmodel_cardapio_repository.py # Implementação concreta da porta (opera direto no ItemCardapio)
 ├── api/                     # 4. ADAPTADORES DE ENTRADA (FastAPI, Schemas, Routers)
 │   ├── dependencies.py      #    Injeção de dependência nativa (fastapi.Depends)
 │   ├── exception_handlers.py#    Mapeamento de ErroDominio.codigo -> HTTP Status Code
-│   ├── schemas/             #    Pydantic Schemas de entrada e saída (DTOs da API)
+│   ├── schemas/             #    Re-exportação canônica dos schemas do domínio
 │   │   └── cardapio_schemas.py
 │   └── routers/             #    APIRouters (orquestram entrada HTTP e acionam use cases via Depends)
 │       ├── cardapio_router.py
@@ -80,26 +79,8 @@ pytest tests/test_use_cases.py -v
 pytest tests/test_cardapio_api.py -v
 ```
 
-### 3. Verificação de Tipos e Lint
-```bash
-# Verificação estática de tipos
-mypy app
-
-# Verificação de estilo e padrões de código
-ruff check app tests
-
-# Formatação automática de código
-ruff format app tests
-```
-
-### 4. Gate de Qualidade Obrigatório
-Antes de submeter qualquer modificação, execute o gate completo. Todo agente deve assegurar que este comando termine verde:
-```bash
-ruff check app tests && mypy app && pytest -v
-```
-
-### 5. Migrações de Banco de Dados (Alembic)
-As tabelas vivem em `app/infrastructure/repositories/sqlmodel_models.py` e são inspecionadas pelo `migrations/env.py`:
+### 3. Migrações de Banco de Dados (Alembic)
+As tabelas vivem em `app/domain/cardapio.py` e são inspecionadas pelo `migrations/env.py`:
 ```bash
 # Aplicar migrações pendentes
 alembic upgrade head
@@ -108,7 +89,7 @@ alembic upgrade head
 alembic revision --autogenerate -m "descricao_da_mudanca"
 
 # Verificar consistência do modelo com o banco
-alembic check
+DATABASE_URL="sqlite:///./cardapio.db" alembic check
 ```
 
 ---
@@ -134,7 +115,17 @@ Ao implementar ou modificar código neste repositório, obedeça às seguintes c
           return await self.repository.salvar(item)
   ```
 
-### 2. Erros de Domínio com `codigo` Semântico
+### 2. Unificação Pragmática de Modelos via SQLModel
+- **Regra:** Evite a proliferação de modelos idênticos em paralelo (uma classe para dataclass pura, outra para tabela ORM, e outra para schemas Pydantic de entrada/saída) com conversões manuais repetitivas (`_to_domain`, `_to_response`).
+- **Padrão:** Use a hierarquia canônica recomendada pela comunidade FastAPI e documentação oficial do SQLModel:
+  - `ItemCardapioBase(SQLModel)`: Campos comuns e validações de tipos.
+  - `ItemCardapio(ItemCardapioBase, table=True)`: Entidade de domínio E modelo de tabela ORM, contendo métodos comportamentais de negócio (`alternar_disponibilidade()`).
+  - `ItemCardapioCreate(ItemCardapioBase)`: Payload de criação (POST).
+  - `ItemCardapioUpdate(SQLModel)`: Payload de atualização parcial (PUT/PATCH).
+  - `ItemCardapioResponse(ItemCardapioBase)`: Schema de saída com `id: int`.
+- Os schemas em `app/api/schemas/cardapio_schemas.py` simplesmente re-exportam essas definições.
+
+### 3. Erros de Domínio com `codigo` Semântico
 - **Regra:** O domínio **nunca** importa `HTTPException` nem define status codes HTTP.
 - **Padrão:** Todas as exceções de domínio herdam de `ErroDominio` e definem um `codigo: str` em UPPER_SNAKE_CASE.
 - **Exemplo:**
@@ -153,7 +144,7 @@ Ao implementar ou modificar código neste repositório, obedeça às seguintes c
           )
   ```
 
-### 3. Mapeamento Global de Erros sem Cadeia de `isinstance`
+### 4. Mapeamento Global de Erros sem Cadeia de `isinstance`
 - **Regra:** Proibido encadear `if isinstance(e, ErroX): ... elif isinstance(e, ErroY): ...`.
 - **Padrão:** O arquivo `app/api/exception_handlers.py` mantém um dicionário estático `MAPA_ERRO_STATUS: dict[str, int]` mapeando o `codigo` da exceção para o status HTTP correspondente.
 - **Formato da Resposta:** O payload JSON retornado deve sempre incluir a chave `detail` para compatibilidade estrita com o frontend:
@@ -164,7 +155,7 @@ Ao implementar ou modificar código neste repositório, obedeça às seguintes c
   )
   ```
 
-### 4. Injeção de Dependências Exclusiva via `fastapi.Depends`
+### 5. Injeção de Dependências Exclusiva via `fastapi.Depends`
 - **Regra:** Não utilize bibliotecas de injeção como `dependency_injector` ou containers reflexivos complexos.
 - **Padrão:** A injeção é montada em `app/api/dependencies.py` usando geradores e funções nativas do FastAPI:
   ```python
@@ -177,7 +168,7 @@ Ao implementar ou modificar código neste repositório, obedeça às seguintes c
       return CriarItemCardapioUseCase(repository=repo)
   ```
 
-### 5. Contrato Estrito com o Frontend Reativo
+### 6. Contrato Estrito com o Frontend Reativo
 - O frontend (`frontend/api.js`) consome os endpoints sob o prefixo `/cardapio/`.
 - Qualquer mudança de campos em `ItemCardapioResponse` (`id`, `nome`, `descricao`, `preco`, `categoria`, `disponivel`, `tempo_preparo_minutos`) quebra a tela de pedidos.
 - Erros capturados pelo frontend dependem explicitamente da propriedade `erroJson.detail`.

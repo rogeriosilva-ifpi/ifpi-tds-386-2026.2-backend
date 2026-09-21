@@ -95,11 +95,11 @@ def test_item_nao_encontrado_error():
 
 
 def test_pureza_arquitetural_da_camada_dominio():
-    """INVARIANTE 1: Garante que app.domain não possui imports de frameworks externos."""
+    """INVARIANTE: Garante que app.domain não possui acoplamento com a camada web."""
     import app.domain.cardapio
     import app.domain.errors
 
-    modulos_proibidos = ["fastapi", "sqlmodel", "sqlalchemy", "starlette", "pydantic"]
+    modulos_proibidos = ["fastapi", "starlette"]
     for nome_modulo, modulo in [
         ("cardapio", app.domain.cardapio),
         ("errors", app.domain.errors),
@@ -107,5 +107,6 @@ def test_pureza_arquitetural_da_camada_dominio():
         atributos = dir(modulo)
         for proibido in modulos_proibidos:
             assert proibido not in atributos, (
-                f"Violação da Invariante 1: Módulo app.domain.{nome_modulo} importa '{proibido}'"
+                f"Violação Arquitetural: Módulo app.domain.{nome_modulo} importa '{proibido}'"
             )
+

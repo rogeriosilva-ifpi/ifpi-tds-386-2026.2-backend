@@ -208,19 +208,19 @@ flowchart LR
 ---
 
 ### Fase 3: Camada de Infraestrutura (`infrastructure/`)
-- **Objetivo:** Isolar as tabelas ORM do SQLModel em `infrastructure/repositories/sqlmodel_models.py`, implementar o repositório concreto `SQLModelCardapioRepository`, e atualizar `migrations/env.py` para que as migrações do Alembic continuem funcionando perfeitamente sem alteração de schema DDL.
+- **Objetivo:** Implementar o repositório concreto `SQLModelCardapioRepository`, atualizar `migrations/env.py` para inspecionar os modelos unificados em `app/domain/cardapio.py` sem alteração de schema DDL, e manter o seed demonstrativo.
 - **Arquivos afetados:**
   - `[NOVO] app/infrastructure/__init__.py`
-  - `[NOVO] app/infrastructure/repositories/sqlmodel_models.py`: Tabela `ItemCardapioTable` com `__tablename__ = "itens_cardapio"`.
-  - `[NOVO] app/infrastructure/repositories/sqlmodel_cardapio_repository.py`: Adaptador concreto que implementa `CardapioRepository` usando a sessão do SQLModel.
+  - `[NOVO] app/infrastructure/repositories/sqlmodel_cardapio_repository.py`: Adaptador concreto que implementa `CardapioRepository` operando diretamente nas instâncias de `ItemCardapio`.
   - `[NOVO] app/infrastructure/seed.py`: Função `seed_dados_iniciais(session)` extraída do `app/main.py`.
-  - `[MODIFICADO] migrations/env.py`: Atualização do import de metadados para apontar para o novo arquivo de modelos de infraestrutura sem alterar nenhuma migration existente.
+  - `[MODIFICADO] migrations/env.py`: Atualização do import de metadados para apontar para `app.domain.cardapio` sem alterar nenhuma migration existente.
   - `[NOVO] tests/test_infrastructure_repository.py`: Teste de integração do repositório com SQLite.
 - **Critério de pronto verificável por máquina:**
   - Comando: `alembic check` e `pytest tests/test_infrastructure_repository.py`
   - Saída esperada: Alembic reconhece o schema sem divergências (`No new upgrade operations detected`) e o repositório passa em todas as operações CRUD.
 - **Risco específico:** Divergência no nome da tabela ou colunas causando alteração indevida de DDL nas migrações do Alembic.
   - *Mitigação:* `__tablename__ = "itens_cardapio"` e tipos de colunas mantidos rigorosamente idênticos.
+
 
 ---
 
@@ -258,10 +258,11 @@ flowchart LR
 
 Estes 7 invariantes capturam as regras arquiteturais e de negócio inegociáveis do projeto, estruturados no formato: **Invariante**, **Caminho seguro** e **Enforcement**.
 
-### Invariante 1: Pureza Absoluta da Camada de Domínio
-- **Invariante:** O diretório `app/domain/` não pode conter nenhum import de bibliotecas externas ou frameworks (proibidos: `fastapi`, `sqlmodel`, `sqlalchemy`, `pydantic.Field` com binds de ORM, `starlette`, etc.).
-- **Caminho seguro:** Entidades de domínio usam `dataclasses` padrão ou modelos puros. Regras de negócio vivem em métodos da entidade ou em serviços de domínio puros.
-- **Enforcement:** Teste automatizado com AST ou verificação via script de lint que falha o build caso qualquer import fora da biblioteca padrão ou de `app.domain` seja detectado em `app/domain/`.
+### Invariante 1: Isolamento Web da Camada de Domínio
+- **Invariante:** O diretório `app/domain/` não pode conter nenhum import de frameworks web de apresentação (`fastapi`, `starlette`). Adota a hierarquia canônica do `SQLModel` para unificar entidades de negócio, tabelas DDL e DTOs, eliminando duplicações e mapeamentos desnecessários.
+- **Caminho seguro:** Entidades de domínio usam a hierarquia canônica do `SQLModel`. Regras de negócio vivem em métodos da entidade ou em serviços de domínio.
+- **Enforcement:** Teste unitário em `tests/test_domain.py` garantindo que nenhum import de `fastapi` ou `starlette` esteja presente em `app/domain/`.
+
 
 ### Invariante 2: Casos de Uso com Responsabilidade Única e Método Único `execute()`
 - **Invariante:** Todo caso de uso na camada `app/application/use_cases/` deve ser uma classe independente contendo exatamente um único método público assíncrono chamado `async def execute(self, ...)`.
@@ -300,7 +301,7 @@ Estes 7 invariantes capturam as regras arquiteturais e de negócio inegociáveis
 | Risco | Impacto | Probabilidade | Mitigação |
 | :--- | :--- | :--- | :--- |
 | **1. Quebra de compatibilidade com o Frontend Vanilla JS** | Alto | Média | O frontend consome `erroJson.detail` e schemas específicos. Mitigado mantendo o payload de erro como `{"detail": exc.mensagem, "codigo": exc.codigo}` e validando com os testes de ponta a ponta da Fase 0. |
-| **2. Quebra de migrações do Alembic** | Crítico | Baixa | O Alembic depende do `SQLModel.metadata`. Ao mover os modelos para `infrastructure/repositories/sqlmodel_models.py`, o `migrations/env.py` deve importar de lá e validar via comando `alembic check` antes de qualquer merge. |
+| **2. Quebra de migrações do Alembic** | Crítico | Baixa | O Alembic depende do `SQLModel.metadata`. Ao unificar os modelos em `app/domain/cardapio.py`, o `migrations/env.py` deve importar de lá e validar via comando `alembic check` antes de qualquer merge. |
 | **3. Bloqueio síncrono vs assíncrono** | Médio | Média | O SQLAlchemy/SQLModel atual opera de modo síncrono no SQLite/PostgreSQL (`psycopg2-binary`). Os casos de uso serão assíncronos (`async def execute`), mas chamarão o repositório de forma segura, mantendo a compatibilidade sem forçar troca arriscada de driver de banco neste momento. |
 | **4. Efeito "Big Bang" e regressões silenciosas** | Alto | Baixa | A migração é fatiada em 6 etapas (Fase 0 a 5). Cada etapa é um PR autocontido com critério de pronto verificável por máquina. O código legado só é removido na Fase 5, após a nova fiação estar 100% verde nos testes. |
 | **5. Dependência de PostgreSQL local nos testes** | Médio | Alta | Resolvido logo na Fase 0 com a criação do `conftest.py` com isolamento completo em SQLite, impedindo que a ausência de PostgreSQL no host quebre a esteira de desenvolvimento. |

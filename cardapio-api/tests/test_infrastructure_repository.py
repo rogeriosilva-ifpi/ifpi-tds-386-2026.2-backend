@@ -94,10 +94,8 @@ def test_seed_popular_dados_iniciais():
         repo = SQLModelCardapioRepository(session=sessao)
 
     with Session(test_engine) as sessao2:
-        repo2 = SQLModelCardapioRepository(session=sessao2)
         itens = sessao2.exec(
-            __import__("sqlmodel").select(
-                __import__("app.infrastructure.repositories.sqlmodel_models", fromlist=["ItemCardapioTable"]).ItemCardapioTable
-            )
+            __import__("sqlmodel").select(ItemCardapio)
         ).all()
         assert len(itens) == 5
+

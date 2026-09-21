@@ -1,68 +1,72 @@
-# 📖 PLAYBOOK.md — Guia Operacional de Evolução de Software
-**Projeto:** Cardápio Digital (IFPI TDS 386)  
-**Arquitetura:** Hexagonal (Ports & Adapters) + Casos de Uso CQS com método único `execute()`
+# 📘 PLAYBOOK.md — Manual de Operações e Evolução Contínua
 
-Este documento estabelece o **Playbook definitivo** para a rotina diária de desenvolvimento e evolução contínua da aplicação. Ele contempla duas abordagens operacionais complementares:
-1. **Modo Manual:** Passo a passo prático para o desenvolvedor tradicional.
-2. **Modo Agente de IA:** Como operar ferramentas autônomas (**AGY**, **Claude Code**, **Codex**) para obter velocidade com máxima conformidade arquitetural.
+> **Guia Definitivo de Engenharia do Cardápio Digital (IFPI TDS 386)**  
+> Contempla todos os processos operacionais de desenvolvimento, validação, persistência e entrega contínua, sob duas perspectivas: **Desenvolvedor Humano (Manual)** e **Agente de IA (AGY / Claude Code / Codex)**.
 
 ---
 
-## 🧭 Visão Geral do Ciclo de Vida de uma Mudança
+## 🧭 Visão Geral da Arquitetura Operacional
 
-Independentemente do executor (humano ou IA), toda modificação no software obedece ao fluxo rigoroso de camadas da Arquitetura Hexagonal:
-
-```mermaid
-flowchart LR
-    subgraph Fluxo["Fluxo de Implementação de Feature"]
-        direction LR
-        D["1. Domain<br/>(Regra & Erro)"] --> A["2. Application<br/>(Porta & Use Case)"]
-        A --> I["3. Infrastructure<br/>(Tabela, Repo, DB)"]
-        I --> E["4. API<br/>(DTO, Controller, Route)"]
-        E --> G["5. Gate de Qualidade<br/>(Testes & Alembic)"]
-    end
-```
+O Cardápio Digital opera em uma **Arquitetura Hexagonal Pragmática (FastAPI-Flavored Ports & Adapters)**:
+- **Núcleo de Domínio & Modelos Unificados (`app/domain/`)**: Hierarquia canônica do `SQLModel` unindo a entidade de negócio, a tabela relacional (DDL) e os schemas (DTOs), eliminando duplicações e mapeadores manuais (`_to_domain`). Isolado de frameworks web (`fastapi`, `starlette`).
+- **Casos de Uso CQS (`app/application/use_cases/`)**: Uma classe por intenção, com método único `async def execute(...)`.
+- **Portas de Persistência (`app/application/ports/`)**: Interfaces abstratas puras (`Protocol`).
+- **Adaptadores de Saída (`app/infrastructure/`)**: Implementação concreta do repositório SQLModel e migrações Alembic.
+- **Adaptadores de Entrada (`app/api/`)**: `APIRouter`, schemas re-exportados e injeção nativa `fastapi.Depends`.
 
 ---
 
-## 🛠️ PARTE 1: Modo Manual (Desenvolvedor Humano)
+## 👨‍💻 PARTE 1: Modo Desenvolvedor Humano (Manual)
 
-### 1. Preparação do Ambiente e Nova Branch
-Antes de tocar em qualquer código, garanta que a branch base está sincronizada e crie uma branch semântica:
+### 1. Ambiente Local de Desenvolvimento
 
 ```bash
-# 1. Ativar o ambiente virtual
+# 1. Ativar o ambiente virtual Python
 source .venv/bin/activate
 
-# 2. Atualizar branch principal
+# 2. Instalar dependências (caso haja novas adições)
+pip install -r requirements.txt
+
+# 3. Executar o servidor de desenvolvimento com hot-reload
+uvicorn main:app --reload --port 8000
+```
+- A API estará disponível em: `http://127.0.0.1:8000`
+- Documentação interativa (Swagger UI): `http://127.0.0.1:8000/docs`
+- Frontend integrado: `http://127.0.0.1:8000/frontend/`
+
+---
+
+### 2. Estratégia de Branching no Git
+
+Nunca desenvolva diretamente na branch principal (`main`). Crie sempre uma branch semântica:
+
+```bash
+# Atualizar a branch principal
 git checkout main
 git pull origin main
 
-# 3. Criar branch para a nova funcionalidade
-git checkout -b feat/nome-da-funcionalidade
+# Criar nova branch para a funcionalidade ou refatoração
+git checkout -b feat/adicionar-filtro-calorias
+# ou
+git checkout -b fix/corrigir-validacao-preco
 ```
 
 ---
 
-### 2. Levantando a Aplicação e Ferramentas Locais
-Para acompanhar o comportamento visual e interativo durante o desenvolvimento:
+### 3. Ciclo de Implementação de uma Nova Feature
 
-```bash
-# Iniciar o servidor local com reload automático
-uvicorn main:app --reload --port 8000
+Siga rigorosamente o fluxo de fora para dentro (Hexagonal Inbound/Outbound):
+
+```text
+[Domínio / SQLModel] -> [Porta & Caso de Uso CQS] -> [Repositório Infra] -> [Migração Alembic] -> [Router API]
 ```
-- **API REST & Swagger Interativo:** [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
-- **Frontend Reativo Integrado:** [http://127.0.0.1:8000/frontend/](http://127.0.0.1:8000/frontend/)
 
----
-
-### 3. Implementando uma Nova Funcionalidade (Camada a Camada)
-
-#### Passo 3.1: Camada de Domínio (`app/domain/`)
-1. Adicione ou modifique a entidade pura em `app/domain/cardapio.py` (métodos de cálculo, validações de invariantes).
-2. Se a regra de negócio puder ser violada, crie a exceção em `app/domain/errors.py` herdando de `ErroDominio` e definindo `codigo = "NOVO_CODIGO_SEMANTICO"`.
-3. Escreva o teste unitário de domínio em `tests/test_domain.py`.
-4. **Regra de ouro:** **Zero imports** de `fastapi`, `sqlmodel`, `sqlalchemy` ou bibliotecas externas.
+#### Passo 3.1: Camada de Domínio & Modelos (`app/domain/`)
+1. Adicione ou modifique a hierarquia SQLModel em `app/domain/cardapio.py` (`ItemCardapioBase`, `ItemCardapio(ItemCardapioBase, table=True)`, etc.).
+2. Adicione regras de negócio e comportamentos na entidade (ex: `alternar_disponibilidade()`).
+3. Se uma regra de negócio for violada, levante uma exceção em `app/domain/errors.py` herdando de `ErroDominio` e definindo `codigo = "NOVO_CODIGO_SEMANTICO"`.
+4. Escreva o teste unitário de domínio em `tests/test_domain.py`.
+5. **Regra de ouro:** **Zero imports** de frameworks web (`fastapi`, `starlette`).
 
 #### Passo 3.2: Camada de Aplicação (`app/application/`)
 1. Caso a operação exija uma nova operação de persistência, atualize a porta `CardapioRepository` em `app/application/ports/cardapio_repository.py`.
@@ -71,14 +75,13 @@ uvicorn main:app --reload --port 8000
 4. Exporte o caso de uso em `app/application/use_cases/__init__.py`.
 5. Escreva testes unitários com o `FakeCardapioRepository` em `tests/test_use_cases.py`.
 
-#### Passo 3.3: Camada de Infraestrutura e Banco de Dados (`app/infrastructure/`)
-1. Se a nova feature exigir colunas no banco:
-   - Atualize `app/infrastructure/repositories/sqlmodel_models.py` na classe `ItemCardapioTable`.
-2. Se a porta `CardapioRepository` ganhou novo método, implemente-o em `app/infrastructure/repositories/sqlmodel_cardapio_repository.py`.
+#### Passo 3.3: Camada de Infraestrutura e Repositório (`app/infrastructure/`)
+1. Se a porta `CardapioRepository` ganhou novo método, implemente-o em `app/infrastructure/repositories/sqlmodel_cardapio_repository.py`.
+2. Como os modelos de tabela estão unificados na entidade `ItemCardapio`, o repositório salva e recupera instâncias de `ItemCardapio` diretamente, sem necessidade de conversões manuais.
 3. Teste o repositório em `tests/test_infrastructure_repository.py`.
 
 #### Passo 3.4: Evolução do Banco de Dados com Migrações (Alembic)
-Sempre que alterar `sqlmodel_models.py`:
+Sempre que alterar colunas ou índices em `app/domain/cardapio.py`:
 
 ```bash
 # 1. Gerar arquivo de migração versionada
@@ -91,14 +94,14 @@ alembic revision --autogenerate -m "adiciona_campo_x_em_itens_cardapio"
 alembic upgrade head
 
 # 4. Verificar se os modelos estão 100% sincronizados com o banco
-alembic check
+DATABASE_URL="sqlite:///./cardapio.db" alembic check
 ```
 
 #### Passo 3.5: Camada de API / Adaptadores de Entrada (`app/api/`)
-1. Defina os schemas Pydantic de entrada/saída em `app/api/schemas/cardapio_schemas.py`.
+1. Os schemas de entrada/saída são re-exportados em `app/api/schemas/cardapio_schemas.py`.
 2. Se criou uma nova exceção de domínio, mapeie seu `codigo` para o status HTTP no `MAPA_ERRO_STATUS` em `app/api/exception_handlers.py`.
 3. Registre a função provedora do novo caso de uso em `app/api/dependencies.py` usando `fastapi.Depends`.
-4. Adicione a rota no APIRouter em `app/api/routers/cardapio_router.py`, injetando o caso de uso e retornando o schema de resposta.
+4. Adicione a rota no APIRouter em `app/api/routers/cardapio_router.py`, injetando o caso de uso via `Depends` e retornando o resultado direto para serialização automática do FastAPI via `response_model`.
 
 ---
 
@@ -110,13 +113,8 @@ Execute a suíte completa de testes para garantir que nada quebrou:
 # Executar todos os testes automatizados
 pytest -v
 
-# Validar sincronismo de schema de banco
+# Validar integridade e sincronismo de schema do Alembic
 DATABASE_URL="sqlite:///./cardapio.db" alembic check
-```
-
-Se tiver linters configurados:
-```bash
-ruff check app tests && mypy app && pytest -v
 ```
 
 ---
@@ -171,7 +169,7 @@ Implementar funcionalidade de "Tempo Estimado de Espera em Fila":
 
 Context:
 - Leia AGENTS.md e PLANO-REFATORACAO-HEXAGONAL.md antes de propor qualquer código.
-- Mantenha a pureza do domínio em app/domain/.
+- Utilize a hierarquia canônica SQLModel em app/domain/cardapio.py sem duplicar modelos.
 - O caso de uso DEVE ter classe própria com único método assíncrono execute().
 - Erros devem herdar de ErroDominio com atributo semântico codigo: str.
 
@@ -217,7 +215,7 @@ Mesmo com testes verdes, o desenvolvedor humano deve realizar uma inspeção pon
 
 | O Que Verificar | Onde Olhar | Critério de Aceite |
 | :--- | :--- | :--- |
-| **Pureza do Domínio** | `app/domain/` | Zero imports de `fastapi`, `sqlmodel`, `sqlalchemy` ou `requests`. |
+| **Isolamento Web do Domínio** | `app/domain/` | Zero imports de `fastapi` ou `starlette`. Modelos usam hierarquia canônica SQLModel. |
 | **Invariante CQS** | `app/application/use_cases/` | Cada classe possui apenas `__init__` e `async def execute(...)`. Proibido métodos auxiliares públicos. |
 | **Erros Semânticos** | `app/domain/errors.py` | Exceções herdam de `ErroDominio` com `codigo: str` em UPPER_SNAKE_CASE. |
 | **Sem `isinstance`** | `app/api/exception_handlers.py` | Mapeamento no `MAPA_ERRO_STATUS`. Sem blocos `if isinstance(e, ...)`. |
@@ -231,10 +229,10 @@ Mesmo com testes verdes, o desenvolvedor humano deve realizar uma inspeção pon
 | Ação | Desenvolvedor Humano (Manual) | Agente de IA (AGY / Claude Code) |
 | :--- | :--- | :--- |
 | **Planejamento da Feature** | Esboça mentalmente ou em notas as classes e arquivos afetados. | Utiliza `/plan` para gerar plano fatiado e árvore de dependências. |
-| **Criação do Domínio** | Codifica a dataclass e exceptions manualmente. | Gera a entidade, métodos de domínio e regras com tipagem estrita. |
+| **Criação do Domínio** | Codifica a classe SQLModel unificada e exceptions manualmente. | Gera a entidade, métodos de domínio e regras com tipagem estrita. |
 | **Criação do Caso de Uso** | Cria arquivo isolado com `async def execute()`. | Cria caso de uso CQS e gera mock/fake em `test_use_cases.py`. |
-| **Evolução do Banco (DDL)** | Edita modelo e roda `alembic revision --autogenerate`. | Edita modelo em `infrastructure`, gera migração e roda `alembic check`. |
-| **Criação da Rota** | Atualiza schemas Pydantic e adiciona endpoint no APIRouter com Depends. | Cria DTOs, injeta dependência via `Depends` e conecta ao router. |
+| **Evolução do Banco (DDL)** | Edita modelo em `app/domain/` e roda `alembic revision --autogenerate`. | Edita modelo unificado, gera migração e roda `alembic check`. |
+| **Criação da Rota** | Atualiza schemas e adiciona endpoint no APIRouter com Depends. | Injeta dependência via `Depends` e conecta ao router. |
 | **Validação** | Roda testes manualmente no terminal (`pytest -v`). | Executa suíte de testes de máquina e corrige regressões autonomamente. |
 | **Controle de Versão** | Faz `git add`, escreve mensagem de commit e faz push. | Cria marcos semânticos com Conventional Commits para cada fase. |
 

@@ -22,7 +22,7 @@ Context
   · api: [INDICAR_NOVO_ENDPOINT_OU_SCHEMA_HTTP]
 
 Constraints
-- Pureza do Domínio: Zero imports externos em `app/domain/`. Regras de negócio vivem na entidade ou em serviços de domínio.
+- Isolamento Web do Domínio: Zero imports de frameworks web (`fastapi`, `starlette`) em `app/domain/`. A modelagem de entidades, tabelas e DTOs utiliza a hierarquia canônica do `SQLModel`.
 - Erros Semânticos: Toda exceção de negócio deve herdar de `ErroDominio` e definir um atributo `codigo: str` único em UPPER_SNAKE_CASE.
 - Casos de Uso CQS: Exatamente 1 classe por operação, com único método público `async def execute(self, ...)`.
 - Mapeamento de Erro: Registrar novos códigos no `MAPA_ERRO_STATUS` em `app/api/exception_handlers.py` (proibido encadeamento de `isinstance`).
