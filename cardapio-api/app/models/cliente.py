@@ -1,5 +1,9 @@
 from datetime import date
-from sqlmodel import SQLModel, Field
+from typing import TYPE_CHECKING
+from sqlmodel import SQLModel, Field, Relationship
+
+if TYPE_CHECKING:
+    from app.models.pedido import Pedido
 
 # =====================================================================
 # CONCEITO DIDÁTICO: SQLModel para Clientes
@@ -47,6 +51,12 @@ class Cliente(ClienteBase, table=True):
     __tablename__ = "clientes"
 
     id: int | None = Field(default=None, primary_key=True)
+
+    # Relacionamento 1:N com Pedidos (Deleção em cascata ativada)
+    pedidos: list["Pedido"] = Relationship(
+        back_populates="cliente",
+        cascade_delete=True
+    )
 
 
 class ClienteCreate(SQLModel):

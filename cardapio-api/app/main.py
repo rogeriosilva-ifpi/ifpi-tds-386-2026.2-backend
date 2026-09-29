@@ -7,8 +7,8 @@ from sqlmodel import Session, select
 from datetime import date
 from app.config import settings
 from app.database import engine, criar_tabelas
-from app.models import ItemCardapio, Cliente
-from app.routers import cardapio, auth, clientes
+from app.models import ItemCardapio, Cliente, Pedido, ItemPedido, StatusPedido
+from app.routers import cardapio, auth, clientes, pedidos
 
 
 # =====================================================================
@@ -94,6 +94,32 @@ async def ciclo_de_vida(app: FastAPI):
             sessao.add_all(clientes_iniciais)
             sessao.commit()
 
+        # Seed automático de pedido didático com item para demonstração imediata
+        pedidos_existentes = sessao.exec(select(Pedido)).first()
+        if not pedidos_existentes:
+            primeiro_cliente = sessao.exec(select(Cliente)).first()
+            primeiro_prato = sessao.exec(select(ItemCardapio)).first()
+            if primeiro_cliente and primeiro_prato:
+                pedido_demo = Pedido(
+                    cliente_id=primeiro_cliente.id,
+                    observacoes="Pedido didático de teste inicial para demonstração",
+                    status=StatusPedido.CONFIRMADO,
+                    valor_total=round(primeiro_prato.preco * 2, 2),
+                )
+                sessao.add(pedido_demo)
+                sessao.commit()
+                sessao.refresh(pedido_demo)
+
+                item_demo = ItemPedido(
+                    pedido_id=pedido_demo.id,
+                    item_cardapio_id=primeiro_prato.id,
+                    quantidade=2,
+                    observacao="Sem cebola (item de teste)",
+                    preco_unitario=primeiro_prato.preco,
+                )
+                sessao.add(item_demo)
+                sessao.commit()
+
     yield
 
 
@@ -126,6 +152,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(cardapio.router)
 app.include_router(clientes.router)
+app.include_router(pedidos.router)
 app.mount("/frontend", StaticFiles(directory="frontend", html=True), name="frontend")
 
 

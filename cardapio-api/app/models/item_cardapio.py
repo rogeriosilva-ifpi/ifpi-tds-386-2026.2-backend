@@ -1,4 +1,8 @@
-from sqlmodel import SQLModel, Field
+from typing import TYPE_CHECKING
+from sqlmodel import SQLModel, Field, Relationship
+
+if TYPE_CHECKING:
+    from app.models.item_pedido import ItemPedido
 
 # =====================================================================
 # CONCEITO DIDÁTICO: SQLModel para Itens do Cardápio
@@ -45,6 +49,11 @@ class ItemCardapio(ItemCardapioBase, table=True):
     __tablename__ = "itens_cardapio"
 
     id: int | None = Field(default=None, primary_key=True)
+
+    # Relacionamento 1:N com ItensPedido (Sem cascade delete para proteger histórico de vendas)
+    itens_pedido: list["ItemPedido"] = Relationship(
+        back_populates="item_cardapio"
+    )
 
 
 class ItemCardapioCreate(ItemCardapioBase):

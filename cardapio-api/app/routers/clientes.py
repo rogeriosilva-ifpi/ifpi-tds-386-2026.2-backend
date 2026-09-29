@@ -2,12 +2,14 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlmodel import Session, select, or_
 
 from app.database import obter_sessao
+from app.dependencies import obter_cliente_autenticado
 from app.models.cliente import (
     Cliente,
     ClienteCreate,
     ClienteUpdate,
     ClienteResponse,
 )
+from app.models.pedido import Pedido, PedidoListResponse
 
 # =====================================================================
 # CONCEITO: APIRouter (Modularização de Rotas para Clientes)
@@ -156,3 +158,53 @@ def remover_cliente(
     sessao.delete(cliente_banco)
     sessao.commit()
     return None
+
+
+# =====================================================================
+# CONCEITO: Sub-Recurso Hierárquico (/clientes/{cliente_id}/pedidos)
+# Expõe os pedidos vinculados diretamente à entidade Cliente pai.
+# Exige o header 'X-Cliente-Id' e valida se o cliente autenticado é o dono.
+# =====================================================================
+@router.get(
+    "/{cliente_id}/pedidos",
+    response_model=list[PedidoListResponse],
+    summary="Sub-recurso: Listar pedidos de um cliente específico",
+)
+def listar_pedidos_do_cliente(
+    cliente_id: int,
+    cliente_logado: Cliente = Depends(obter_cliente_autenticado),
+    sessao: Session = Depends(obter_sessao),
+):
+    cliente_banco = sessao.get(Cliente, cliente_id)
+    if not cliente_banco:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Cliente não localizado com id={cliente_id}.",
+        )
+
+    # Controle de Autorização: o cliente logado só pode ver seus próprios pedidos
+    if cliente_id != cliente_logado.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Acesso negado: você não tem permissão para visualizar pedidos do cliente ID={cliente_id}.",
+        )
+
+    instrucao = (
+        select(Pedido)
+        .where(Pedido.cliente_id == cliente_id)
+        .order_by(Pedido.id.desc())
+    )
+    pedidos = sessao.exec(instrucao).all()
+
+    return [
+        PedidoListResponse(
+            id=p.id,
+            cliente_id=p.cliente_id,
+            data_hora=p.data_hora,
+            status=p.status,
+            valor_total=p.valor_total,
+            total_itens=len(p.itens),
+        )
+        for p in pedidos
+    ]
+

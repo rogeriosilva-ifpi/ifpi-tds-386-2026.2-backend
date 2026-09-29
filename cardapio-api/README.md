@@ -25,9 +25,25 @@ Demonstra a construção de uma **API RESTful profissional com FastAPI, SQLModel
      - `GET /clientes/`: Listagem com busca textual por nome, telefone, CEP ou endereço e ordenação alfabética.
      - `GET /clientes/{id}`: Consulta de cliente por ID com retorno `404 Not Found`.
      - `POST /clientes/`: Cadastro com validação rigorosa de dados de entrega (`nome`, `endereco`, `cep`, `numero`, `telefone/WhatsApp` obrigatórios; `422` se ausentes) e status `201 Created`.
-     - `PUT /clientes/{id}`: Atualização parcial de dados cadastrais.
-     - `DELETE /clientes/{id}`: Exclusão de cadastro com status `204 No Content`.
-7. **CORS (Cross-Origin Resource Sharing)**: Habilitado para comunicação fluida com aplicações frontend e mobile.
+      - `PUT /clientes/{id}`: Atualização parcial de dados cadastrais.
+      - `DELETE /clientes/{id}`: Exclusão de cadastro com status `204 No Content`.
+      - `GET /clientes/{id}/pedidos`: Sub-recurso para listar os pedidos do cliente autenticado.
+   - **Pedidos e Sub-Recursos (`/pedidos`):**
+      - `POST /pedidos/`: Criação de pedido vinculado ao cliente do header `X-Cliente-Id`, com snapshot de preço e suporte a itens inline.
+      - `GET /pedidos/`: Histórico resumido de pedidos do cliente autenticado.
+      - `GET /pedidos/{id}`: Consulta detalhada com itens e validação de posse (`403 Forbidden` se não for o dono).
+      - `PATCH /pedidos/{id}/status`: Transição de status na máquina de estados (`CRIADO` -> `CONFIRMADO` -> `EM_PREPARO` -> `PRONTO` -> `ENTREGUE` ou `CANCELADO`).
+      - `DELETE /pedidos/{id}`: Cancelamento/remoção com exclusão em cascata dos itens associados.
+      - **Sub-Recurso de Itens do Pedido (`/pedidos/{id}/itens`):**
+        - `GET /pedidos/{id}/itens`: Listagem de itens com nome, quantidade, preço unitário e subtotal calculado.
+        - `POST /pedidos/{id}/itens`: Adiciona item, congela preço do cardápio e recalcula o total do pedido.
+        - `PUT /pedidos/{id}/itens/{item_id}`: Altera quantidade/observação e sincroniza o total pai.
+        - `DELETE /pedidos/{id}/itens/{item_id}`: Remove item e subtrai do total pai (`204 No Content`).
+7. **Identificação e Autorização por Header (`X-Cliente-Id`)**: Controle provisório de acesso e posse de recursos.
+8. **Integridade Referencial e Cascade**:
+   - `Pedido -> ItensPedido`: Exclusão em cascata ativada (`cascade_delete=True` e `ondelete="CASCADE"`).
+   - `ItemCardapio -> ItensPedido`: Proteção contra deleção acidental de histórico de vendas.
+9. **CORS (Cross-Origin Resource Sharing)**: Habilitado para comunicação fluida com aplicações frontend e mobile.
 
 ### Frontend Reativo (JavaScript Vanilla sem Frameworks)
 1. **Estado Centralizado (*Single Source of Truth*)** (`state.js`): Controla todas as variáveis visuais da aplicação.
@@ -50,20 +66,25 @@ cardapio-api/
 │   └── versions/               # Histórico de alterações do banco
 │       ├── 0001_criacao_inicial_itens_cardapio.py
 │       ├── 0002_adiciona_tempo_preparo.py
-│       └── 0003_cria_tabela_clientes.py
+│       ├── 0003_cria_tabela_clientes.py
+│       └── 0004_cria_tabelas_pedidos_e_itens_pedido.py
 ├── app/
 │   ├── __init__.py
 │   ├── config.py               # Leitura tipada de variáveis de ambiente (.env)
 │   ├── database.py             # Engine flexível (PostgreSQL/Supabase/SQLite)
+│   ├── dependencies.py         # Injeção de dependência e autenticação por Header (X-Cliente-Id)
 │   ├── models/                 # Modelos SQLModel modularizados por recurso
 │   │   ├── __init__.py         # Reexportação unificada de todos os modelos
 │   │   ├── item_cardapio.py    # Tabela e Schemas de Itens do Cardápio
-│   │   └── cliente.py          # Tabela e Schemas de Clientes (dados de entrega)
+│   │   ├── cliente.py          # Tabela e Schemas de Clientes (dados de entrega)
+│   │   ├── pedido.py           # Tabela, StatusPedido e Schemas de Pedidos
+│   │   └── item_pedido.py      # Tabela de Itens de Pedido com Snapshot de Preço
 │   ├── routers/                # Roteadores modulares da API (APIRouter)
 │   │   ├── __init__.py
 │   │   ├── auth.py             # Autenticação e perfil
 │   │   ├── cardapio.py         # Endpoints CRUD do cardápio
-│   │   └── clientes.py         # Endpoints CRUD de clientes
+│   │   ├── clientes.py         # Endpoints CRUD de clientes e sub-recurso /pedidos
+│   │   └── pedidos.py          # Endpoints de pedidos e sub-recursos /itens
 │   └── main.py                 # Instância FastAPI, Lifespan (Seed), CORS e StaticFiles
 ├── frontend/
 │   ├── index.html              # Interface responsiva moderna com Tailwind CSS
@@ -74,7 +95,8 @@ cardapio-api/
 ├── tests/
 │   ├── __init__.py
 │   ├── test_cardapio.py        # Testes automatizados dos endpoints do cardápio
-│   └── test_clientes.py        # Testes automatizados do CRUD e validações de clientes
+│   ├── test_clientes.py        # Testes automatizados do CRUD e validações de clientes
+│   └── test_pedidos.py         # Testes de relacionamentos, sub-recursos e autorização
 ├── main.py                     # Atalho de execução para 'uvicorn main:app'
 ├── _docs/                      # [AULAS E ESTUDOS] Materiais didáticos e roteiros
 │   ├── AULA_CARDAPIO_API.md    # Apresentação completa em 36 slides didáticos
