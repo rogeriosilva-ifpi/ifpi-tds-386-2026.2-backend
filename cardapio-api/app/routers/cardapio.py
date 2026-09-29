@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlmodel import Session, select, or_
 
 from app.database import obter_sessao
-from app.models import (
+from app.models.item_cardapio import (
     ItemCardapio,
     ItemCardapioCreate,
     ItemCardapioUpdate,

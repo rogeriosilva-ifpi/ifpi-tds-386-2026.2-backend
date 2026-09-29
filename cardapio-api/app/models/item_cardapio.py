@@ -1,14 +1,10 @@
 from sqlmodel import SQLModel, Field
 
 # =====================================================================
-# CONCEITO DIDÁTICO: SQLModel (União entre Pydantic e SQLAlchemy)
-# 1. Classes que herdam de SQLModel são Schemas Pydantic por padrão (validação).
-# 2. Ao adicionar table=True, a classe também se torna uma Tabela no Banco de Dados.
-#
-# CONCEITO: Evolução de Esquema de Banco
-# Ao adicionar um novo campo (como tempo_preparo_minutos) num modelo existente,
-# o banco de dados precisa de uma migração (via Alembic) para rodar o
-# comando SQL: ALTER TABLE itens_cardapio ADD COLUMN tempo_preparo_minutos INTEGER;
+# CONCEITO DIDÁTICO: SQLModel para Itens do Cardápio
+# 1. ItemCardapioBase: campos comuns e regras de validação Pydantic.
+# 2. ItemCardapio: mapeamento ORM (table=True) na tabela 'itens_cardapio'.
+# 3. ItemCardapioCreate / ItemCardapioUpdate / ItemCardapioResponse: DTOs da API.
 # =====================================================================
 
 
@@ -44,22 +40,13 @@ class ItemCardapioBase(SQLModel):
     )
 
 
-# =====================================================================
-# CONCEITO: Modelo ORM (Tabela no PostgreSQL / SQLite)
-# table=True avisa o SQLModel que esta classe mapeia a tabela itens_cardapio.
-# =====================================================================
 class ItemCardapio(ItemCardapioBase, table=True):
+    """Modelo ORM que mapeia a tabela 'itens_cardapio' no banco de dados."""
     __tablename__ = "itens_cardapio"
 
     id: int | None = Field(default=None, primary_key=True)
 
 
-# =====================================================================
-# CONCEITO: Schemas de Validação de Entrada e Saída (DTOs)
-# - ItemCardapioCreate: o que o cliente envia no POST (sem id).
-# - ItemCardapioUpdate: campos opcionais que podem ser atualizados no PUT/PATCH.
-# - ItemCardapioResponse: o que a API devolve (garantindo id).
-# =====================================================================
 class ItemCardapioCreate(ItemCardapioBase):
     """Schema para validação do corpo da requisição no cadastro (POST)."""
     pass
@@ -78,6 +65,3 @@ class ItemCardapioUpdate(SQLModel):
 class ItemCardapioResponse(ItemCardapioBase):
     """Schema retornado pela API nas consultas. Garante a presença do campo 'id'."""
     id: int
-
-    
-
