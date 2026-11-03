@@ -1,0 +1,176 @@
+from contextlib import asynccontextmanager
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from sqlmodel import Session, select
+
+from datetime import date
+from app.config import settings
+from app.database import engine, criar_tabelas
+from app.models import ItemCardapio, Cliente, Pedido, ItemPedido, StatusPedido
+from app.routers import cardapio, auth, clientes, pedidos
+
+
+# =====================================================================
+# CONCEITO DIDÁTICO: Lifespan e Carga Inicial de Dados (Seed)
+# O lifespan gerencia o ciclo de vida da API ao iniciar e desligar.
+# Se o banco estiver vazio, inserimos pratos didáticos com tempo de preparo.
+# =====================================================================
+@asynccontextmanager
+async def ciclo_de_vida(app: FastAPI):
+    # Em SQLite, garante existência da estrutura caso migrações ainda não tenham rodado
+    criar_tabelas()
+
+    # Seed automático de demonstração
+    with Session(engine) as sessao:
+        itens_existentes = sessao.exec(select(ItemCardapio)).first()
+        if not itens_existentes:
+            dados_iniciais = [
+                ItemCardapio(
+                    nome="Filé com Fritas",
+                    descricao="Filé mignon grelhado em tiras, servido com batatas fritas crocantes.",
+                    preco=38.50,
+                    categoria="Lanches",
+                    disponivel=True,
+                    tempo_preparo_minutos=25,
+                ),
+                ItemCardapio(
+                    nome="Pão c/ Carne de Sol (3und)",
+                    descricao="Mini pães recheados com carne de sol desfiada e nata especial.",
+                    preco=22.00,
+                    categoria="Lanches",
+                    disponivel=True,
+                    tempo_preparo_minutos=15,
+                ),
+                ItemCardapio(
+                    nome="Pastel de Queijo Coalho (6und)",
+                    descricao="Pastéis fritos na hora com recheio de queijo coalho nordestino.",
+                    preco=18.00,
+                    categoria="Lanches",
+                    disponivel=False, # Demonstrar prato esgotado
+                    tempo_preparo_minutos=12,
+                ),
+                ItemCardapio(
+                    nome="Suco de Caju da Terra (500ml)",
+                    descricao="Suco natural de caju fresco da região de Teresina.",
+                    preco=8.50,
+                    categoria="Bebidas",
+                    disponivel=True,
+                    tempo_preparo_minutos=5,
+                ),
+                ItemCardapio(
+                    nome="Pudim de Leite Condensado",
+                    descricao="Fatia generosa de pudim tradicional com calda de caramelo.",
+                    preco=10.00,
+                    categoria="Sobremesas",
+                    disponivel=True,
+                    tempo_preparo_minutos=2,
+                ),
+            ]
+            sessao.add_all(dados_iniciais)
+            sessao.commit()
+
+        # Seed automático de clientes didáticos para demonstração
+        clientes_existentes = sessao.exec(select(Cliente)).first()
+        if not clientes_existentes:
+            clientes_iniciais = [
+                Cliente(
+                    nome="Maria Silva",
+                    data_nascimento=date(1995, 4, 15),
+                    endereco="Av. Frei Serafim, Centro",
+                    cep="64000-000",
+                    numero="1200",
+                    telefone="86999887766",
+                ),
+                Cliente(
+                    nome="João Santos",
+                    data_nascimento=date(1990, 10, 20),
+                    endereco="Rua Coelho de Resende",
+                    cep="64001-200",
+                    numero="450",
+                    telefone="86988776655",
+                ),
+            ]
+            sessao.add_all(clientes_iniciais)
+            sessao.commit()
+
+        # Seed automático de pedido didático com item para demonstração imediata
+        pedidos_existentes = sessao.exec(select(Pedido)).first()
+        if not pedidos_existentes:
+            primeiro_cliente = sessao.exec(select(Cliente)).first()
+            primeiro_prato = sessao.exec(select(ItemCardapio)).first()
+            if primeiro_cliente and primeiro_prato:
+                pedido_demo = Pedido(
+                    cliente_id=primeiro_cliente.id,
+                    observacoes="Pedido didático de teste inicial para demonstração",
+                    status=StatusPedido.CONFIRMADO,
+                    valor_total=round(primeiro_prato.preco * 2, 2),
+                )
+                sessao.add(pedido_demo)
+                sessao.commit()
+                sessao.refresh(pedido_demo)
+
+                item_demo = ItemPedido(
+                    pedido_id=pedido_demo.id,
+                    item_cardapio_id=primeiro_prato.id,
+                    quantidade=2,
+                    observacao="Sem cebola (item de teste)",
+                    preco_unitario=primeiro_prato.preco,
+                )
+                sessao.add(item_demo)
+                sessao.commit()
+
+    yield
+
+
+# =====================================================================
+# CONCEITO: Instância Principal da Aplicação FastAPI
+# =====================================================================
+app = FastAPI(
+    title=settings.APP_NAME,
+    description="API didática com FastAPI, SQLModel, Alembic Migrations e PostgreSQL/Supabase.",
+    version="2.1.0",
+    lifespan=ciclo_de_vida,
+)
+
+
+# =====================================================================
+# CONCEITO: Middleware de CORS (Cross-Origin Resource Sharing)
+# =====================================================================
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+# =====================================================================
+# CONCEITO: Inclusão de Rotas Modulares e Arquivos Estáticos
+# =====================================================================
+app.include_router(auth.router)
+app.include_router(cardapio.router)
+app.include_router(clientes.router)
+app.include_router(pedidos.router)
+app.mount("/frontend", StaticFiles(directory="frontend", html=True), name="frontend")
+
+
+# Endpoints informativos básicos
+@app.get("/", summary="Status da API")
+def raiz():
+    return {
+        "mensagem": "API do Cardápio IFPI no AR!",
+        "versao": "2.1.0",
+        "ambiente": settings.ENVIRONMENT,
+        "docs_swagger": "/docs",
+        "frontend": "/frontend/",
+    }
+
+
+@app.get("/hello", summary="Saudação")
+def saudacao():
+    nome = "Rogério Silva"
+    return {
+        "mensagem": f"Olá {nome}! Bem-vindo ao Cardápio Digital IFPI TDS!"
+    }

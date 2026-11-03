@@ -1,0 +1,38 @@
+# Ambientes virtuais locais
+.venv/
+venv/
+env/
+ENV/
+
+# Byte-code Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Bancos de dados locais e temporários
+*.db
+*.sqlite
+*.sqlite3
+
+# Testes e Caches
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Segredos e Variáveis de Ambiente (CRÍTICO: nunca incluir .env em imagens Docker)
+.env
+.env.local
+.env.*.local
+
+# Controle de versão e IDEs
+.git/
+.gitignore
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Planos, Especificações e Documentos locais dispensáveis no container
+_specs/
+_docs/
+PLANO*.md

@@ -1,0 +1,19 @@
+# =====================================================================
+# RENDER BLUEPRINT - INFRAESTRUTURA COMO CÓDIGO (IaC)
+# Permite criar e configurar o Web Service no Render automaticamente.
+# =====================================================================
+
+services:
+  - type: web
+    name: cardapio-api
+    env: docker
+    plan: free
+    region: oregon
+    healthCheckPath: /
+    envVars:
+      - key: DATABASE_URL
+        sync: false # Solicita que o usuário informe a Connection String do Supabase no dashboard
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: "false"
