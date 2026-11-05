@@ -1,7 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlmodel import Session, select, or_
+from typing import Annotated
 
 from app.database import obter_sessao
+# from app.routers.auth import obter_usuario_atual
+from app.dependencies import verificar_perfil, obter_usuario_atual
+from app.models.usuario import Usuario, UsuarioPerfil
 from app.models.item_cardapio import (
     ItemCardapio,
     ItemCardapioCreate,
@@ -27,11 +31,13 @@ router = APIRouter(prefix="/cardapio", tags=["Cardápio"])
             status_code=status.HTTP_200_OK,
             summary="Listar itens do cardápio do restaurante")
 def listar_cardapio(
+    usuario: Annotated[Usuario,
+                       Depends(verificar_perfil([UsuarioPerfil.LOGISTA, UsuarioPerfil.CLIENTE]))],
+    sessao: Session = Depends(obter_sessao),
     categoria: str | None = Query(default=None, description="Filtrar por categoria (ex: Lanches, Bebidas)"),
     disponivel: bool | None = Query(default=None, description="Filtrar por disponibilidade (true ou false)"),
     busca: str | None = Query(default=None, description="Buscar por termo no nome ou descrição"),
     preco_maximo: float | None = Query(default=None, description='Filtrar por no máximo este preço R$.'),
-    sessao: Session = Depends(obter_sessao),
 ):
     query = select(ItemCardapio) # select * from item_cardapio
 
@@ -68,7 +74,8 @@ def listar_cardapio(
             response_model=ItemCardapioResponse, 
             summary="Obter item por ID")
 def obter_item(
-    item_id: int, 
+    item_id: int,
+    usuario: Annotated[Usuario, Depends(obter_usuario_atual)], 
     sessao: Session = Depends(obter_sessao)
 ):
     item = sessao.get(ItemCardapio, item_id)
@@ -77,7 +84,18 @@ def obter_item(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Item não localizado com id={item_id}."
         )
-    return item
+    
+    if usuario.perfil == UsuarioPerfil.CLIENTE:
+        return item       
+    elif usuario.perfil == UsuarioPerfil.LOGISTA:
+        if item.usuario.id != usuario.id:
+            raise HTTPException(
+                            status_code=status.HTTP_403_FORBIDDEN,
+                            detail=f"Voce não tem acesso a esse item id={item_id}."
+                        )
+
+        return item
+
 
 
 # =====================================================================
@@ -94,7 +112,8 @@ def obter_item(
     summary="Cadastrar novo item no cardápio"
 )
 def criar_item(
-    dados: ItemCardapioCreate, 
+    dados: ItemCardapioCreate,
+    usuario: Annotated[Usuario, Depends(verificar_perfil([UsuarioPerfil.LOGISTA]))], 
     sessao: Session = Depends(obter_sessao)
 ):
     novo_item = ItemCardapio.model_validate(dados)

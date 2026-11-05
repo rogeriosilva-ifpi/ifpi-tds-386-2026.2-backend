@@ -30,6 +30,14 @@ from app.models.pedido import (
     PedidoResponse,
     PedidoListResponse,
 )
+from app.models.usuario import (
+    UsuarioBase,
+    Usuario,
+    UsuarioCreate,
+    UsuarioUpdate,
+    UsuarioResponse,
+    UsuarioRegistro,
+)
 
 __all__ = [
     # Item Cardápio
@@ -59,4 +67,11 @@ __all__ = [
     "PedidoUpdateStatus",
     "PedidoResponse",
     "PedidoListResponse",
+    # Usuário
+    "UsuarioBase",
+    "Usuario",
+    "UsuarioCreate",
+    "UsuarioUpdate",
+    "UsuarioResponse",
+    "UsuarioRegistro",
 ]

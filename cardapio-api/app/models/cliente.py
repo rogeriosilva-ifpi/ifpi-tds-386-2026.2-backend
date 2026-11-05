@@ -1,9 +1,10 @@
 from datetime import date
-from typing import TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
 from sqlmodel import SQLModel, Field, Relationship
 
 if TYPE_CHECKING:
     from app.models.pedido import Pedido
+    from app.models.usuario import Usuario
 
 # =====================================================================
 # CONCEITO DIDÁTICO: SQLModel para Clientes
@@ -57,6 +58,9 @@ class Cliente(ClienteBase, table=True):
         back_populates="cliente",
         cascade_delete=True
     )
+
+    # Relacionamento 1:1 com Usuario
+    usuario: Optional["Usuario"] = Relationship(back_populates="cliente")
 
 
 class ClienteCreate(SQLModel):
