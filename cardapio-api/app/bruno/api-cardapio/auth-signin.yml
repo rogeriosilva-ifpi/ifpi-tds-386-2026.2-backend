@@ -1,0 +1,22 @@
+info:
+  name: auth-signin
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: http://localhost:8000/auth/signin
+  body:
+    type: json
+    data: |-
+      {
+        "email": "rogeriosilva@gmail.com",
+        "password": "123456@Bolo"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

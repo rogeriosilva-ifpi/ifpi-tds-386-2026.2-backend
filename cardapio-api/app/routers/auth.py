@@ -4,10 +4,13 @@ from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session, select
 from typing import Annotated
-from app.dependencies import senha_forte, verificar_senha, obter_hash_senha, create_jwt_token, obter_usuario_atual
+from app.dependencies import senha_forte, \
+            verificar_senha, obter_hash_senha, \
+                create_jwt_token, obter_usuario_atual, verificar_perfil
+            
 
 from app.database import obter_sessao
-from app.models.usuario import Usuario, UsuarioResponse, UsuarioRegistro, LoginData, LoginResponse, RefreshData
+from app.models.usuario import Usuario, UsuarioResponse, UsuarioRegistro, LoginData, LoginResponse, RefreshData, UsuarioPerfil
 from app.models.cliente import Cliente
 
 
@@ -142,6 +145,14 @@ def refresh(dados: RefreshData,
                                             timedelta(days=7))
     return {'access_token': access_token, 
                 'refresh_token': refresh_token}
+
+
+@router.post('/{usuario_id}/promover',
+             summary='Promove um usuário CLIENTE para perfil LOGISTA')
+def promover(usuario_id: int,
+             usuario: Annotated[Usuario, Depends(verificar_perfil([UsuarioPerfil.ADMIN]))],):
+
+    ...
 
 @router.get('/me',
             response_model=UsuarioResponse,
